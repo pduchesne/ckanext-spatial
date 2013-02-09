@@ -177,11 +177,11 @@ class GeminiHarvester(SpatialHarvester):
         if not valid:
             reject = asbool(config.get('ckan.spatial.validator.reject', False))
             log.error('Errors found for object with GUID %s:' % self.obj.guid)
-            out = messages[0] + ':\n\n' + '\n\n'.join(messages[1:]) + '\n\n'
             if reject:
-                out += '**ABORT** Import for this object is aborted because of these errors during validation.'
+                out = '** ABORT! ** Import of this object is aborted because of errors during validation.'
             else:
-                out += 'Import for this object continues despite these errors during validation.'
+                out = 'Import of this object continues despite errors during validation.'
+            out += '\n\n' + messages[0] + ':\n\n' + '\n\n'.join(messages[1:]) + '\n\n'
             if reject:
                 raise Exception(out)
             else:
