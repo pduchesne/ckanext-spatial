@@ -148,7 +148,7 @@ class SchematronValidator(BaseValidator):
         message_element = failed_assert_element.find("{http://purl.oclc.org/dsdl/svrl}text")
         message = message_element.text.strip()
         failed_assert_element
-        return message, 'Error Message: "%s"  Error Location: "%s"  Error Assert: "%s"' % (message, location, assert_)
+        return message, 'Error Message: %s\nError Location: %s\nError Assert: %s' % (message, location, assert_)
 
     @classmethod
     def schematron(cls, schema):

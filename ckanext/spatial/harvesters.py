@@ -28,6 +28,7 @@ from pylons import config
 from sqlalchemy.sql import update, bindparam
 from sqlalchemy.exc import InvalidRequestError
 from owslib import wms
+from paste.deploy.converters import asbool
 
 from ckan import model
 from ckan.model import Session, Package
@@ -152,7 +153,7 @@ class GeminiHarvester(SpatialHarvester):
             if not str(e).strip():
                 self._save_object_error('Error importing Gemini document.', harvest_object, 'Import')
             else:
-                self._save_object_error('Error importing Gemini document: %s' % str(e), harvest_object, 'Import')
+                self._save_object_error('Error importing Gemini document\n%s' % str(e), harvest_object, 'Import')
 
             if debug_exception_mode:
                 raise
@@ -160,20 +161,31 @@ class GeminiHarvester(SpatialHarvester):
     def import_gemini_object(self, gemini_string, harvest_source_reference):
         '''Imports the Gemini metadata into CKAN.
 
+        First it does XML Validation on the gemini.
+
         The harvest_source_reference is an ID that the harvest_source uses
         for the metadata document. It is the same ID the Coupled Resources
         use to link dataset and service records.
 
-        Some errors raise Exceptions.
+        Non-fatal errors are recorded with _save_object_error().
+        Fatal errors simply raise an Exception.
         '''
         log = logging.getLogger(__name__ + '.import')
         xml = etree.fromstring(gemini_string)
 
         valid, messages = self._get_validator().is_valid(xml)
         if not valid:
+            reject = asbool(config.get('ckan.spatial.validator.reject', False))
             log.error('Errors found for object with GUID %s:' % self.obj.guid)
-            out = messages[0] + ':\n' + '\n'.join(messages[1:])
-            self._save_object_error(out,self.obj,'Import')
+            out = messages[0] + ':\n\n' + '\n\n'.join(messages[1:]) + '\n\n'
+            if reject:
+                out += '**ABORT** Import for this object is aborted because of these errors during validation.'
+            else:
+                out += 'Import for this object continues despite these errors during validation.'
+            if reject:
+                raise Exception(out)
+            else:
+                self._save_object_error(out,self.obj,'Import')
 
         unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 

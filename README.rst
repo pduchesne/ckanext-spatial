@@ -48,7 +48,7 @@ forms:
 - 4326
 
 As of CKAN 1.6, you can integrate your spatial query in the full CKAN
-search, via the web interface (see the `Spatial Query Widget`_) or
+search, via the web interface (see the `Spatial Search Widget`_) or
 via the `action API`__, e.g.::
 
     POST http://localhost:5000/api/action/package_search
@@ -149,11 +149,16 @@ The harvesters get the metadata from these types of server:
 The GEMINI-specific parts of the code are restricted to the fields imported into CKAN, so it would be relatively simple to generalise these to other INSPIRE profiles.
 
 Each contains code to do the three stages of harvesting:
- * gather_stage - Submits a request to Harvest Sources and assembles a list of all the metadata URLs (since each CSW record can recursively refer to more records?). Some processing of the XML or validation may occur.
+ * gather_stage - Submits a request to Harvest Sources and assembles a list of all the metadata URLs (since each CSW record can recursively refer to more records?). Some processing of the XML occurs to extract the unique reference.
  * fetch_stage - Fetches all the Gemini metadata
- * import_stage - validates all the Gemini, converts it to a CKAN Package and saves it in CKAN
+ * import_stage - Validates all the Gemini, converts it to a CKAN Package and saves it in CKAN
 
 You must specify which validators to use in the configuration of ``ckan.spatial.validator.profiles`` - see below.
+
+By default, these harvesters will still import metadata that fails the XML validation. To reject such records, add this to your CKAN configuration::
+
+  ckan.spatial.validator.reject = true
+
 
 Harvest Metadata API
 --------------------
@@ -210,7 +215,7 @@ Validator
 
 This python library uses Schematron and other schemas to validate the XML.
 
-Here is a simple example of using the Validator library:
+Here is a simple example of using the Validator library::
 
  from ckanext.csw.validation import Validator
  xml = etree.fromstring(gemini_string)
