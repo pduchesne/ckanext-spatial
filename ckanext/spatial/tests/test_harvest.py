@@ -244,7 +244,7 @@ class TestHarvest(HarvestFixtureBase):
             'coupled-resource': u'[{"href": ["http://scotgovsdi.edina.ac.uk/srv/en/csw?service=CSW&request=GetRecordById&version=2.0.2&outputSchema=http://www.isotc211.org/2005/gmd&elementSetName=full&id=250ea276-48e2-4189-8a89-fcc4ca92d652"], "uuid": ["250ea276-48e2-4189-8a89-fcc4ca92d652"], "title": []}]',
             'dataset-reference-date': u'[{"type": "publication", "value": "2011-09-08"}]',
             'frequency-of-update': u'daily',
-            'licence': u'["Use of the One Scotland Gazetteer data used by this this service is available to any organisation that is a member of the One Scotland Mapping Agreement. It is not currently commercially available", "http://www.test.gov.uk/licenseurl"]',
+            'licence': u'["Use of the One Scotland Gazetteer data used by this this service is available to any organisation that is a member of the One Scotland Mapping Agreement. It is not currently commercially available"]',
             'licence_url': u'http://www.test.gov.uk/licenseurl',
             'metadata-date': u'2011-09-08T16:07:32',
             'metadata-language': u'eng',
@@ -362,7 +362,7 @@ class TestHarvest(HarvestFixtureBase):
             'coupled-resource': u'[]',
             'dataset-reference-date': u'[{"type": "creation", "value": "2004-02"}, {"type": "revision", "value": "2006-07-03"}]',
             'frequency-of-update': u'irregular',
-            'licence': u'["Reference and PSMA Only", "http://www.test.gov.uk/licenseurl"]',
+            'licence': u'["Reference and PSMA Only", "copyright", "otherRestrictions"]',
             'licence_url': u'http://www.test.gov.uk/licenseurl',
             'metadata-date': u'2011-09-23T10:06:08',
             'metadata-language': u'eng',
@@ -859,31 +859,32 @@ class TestGatherMethods(HarvestFixtureBase):
 
 class TestImportStageTools:
     def test_licence_url_normal(self):
-        assert_equal(GeminiHarvester._extract_first_licence_url(
+        assert_equal(GeminiHarvester._extract_licence_urls(
             ['Reference and PSMA Only',
              'http://www.test.gov.uk/licenseurl']),
-                     'http://www.test.gov.uk/licenseurl')
+                     ['http://www.test.gov.uk/licenseurl'])
 
     def test_licence_url_multiple_urls(self):
         # only the first URL is extracted
-        assert_equal(GeminiHarvester._extract_first_licence_url(
+        assert_equal(GeminiHarvester._extract_licence_urls(
             ['Reference and PSMA Only',
              'http://www.test.gov.uk/licenseurl',
              'http://www.test.gov.uk/2nd_licenseurl']),
-                     'http://www.test.gov.uk/licenseurl')
+                     ['http://www.test.gov.uk/licenseurl',
+                      'http://www.test.gov.uk/2nd_licenseurl'])
 
     def test_licence_url_embedded(self):
         # URL is embedded within the text field and not extracted
-        assert_equal(GeminiHarvester._extract_first_licence_url(
+        assert_equal(GeminiHarvester._extract_licence_urls(
             ['Reference and PSMA Only http://www.test.gov.uk/licenseurl']),
-                     None)
+                     [])
 
     def test_licence_url_embedded_at_start(self):
         # URL is embedded at the start of the text field and the
         # whole field is returned. Noting this unusual behaviour
-        assert_equal(GeminiHarvester._extract_first_licence_url(
+        assert_equal(GeminiHarvester._extract_licence_urls(
             ['http://www.test.gov.uk/licenseurl Reference and PSMA Only']),
-                     'http://www.test.gov.uk/licenseurl Reference and PSMA Only')
+                     ['http://www.test.gov.uk/licenseurl Reference and PSMA Only'])
 
     def test_responsible_organisation_basic(self):
         responsible_organisation = [{'organisation-name': 'Ordnance Survey',
@@ -946,6 +947,63 @@ class TestImportStageTools:
         responsible_organisation = []
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
                      ('', []))
+
+    def test_licence_just_free_text(self):
+        # no owner or publisher, so blank provider
+        gemini = {'use_constraints': ['License available'],
+                  'anchor_href': None,
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['License available']}))
+
+    def test_licence_free_text_and_url(self):
+        # no owner or publisher, so blank provider
+        gemini = {'use_constraints': ['License available', 'Good',
+                                      'http://license.com/terms.html'],
+                  'anchor_href': None,
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['License available', 'Good'],
+                       'licence_url': 'http://license.com/terms.html'}))
+
+    def test_licence_multiple_urls(self):
+        # no owner or publisher, so blank provider
+        gemini = {'use_constraints': ['License available', 'Good',
+                                      'http://license.com/terms1.html',
+                                      'http://license.com/terms2.html'],
+                  'anchor_href': None,
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['License available', 'Good',
+                                   'http://license.com/terms2.html'],
+                       'licence_url': 'http://license.com/terms1.html'}))
+
+    def test_licence_anchor_url(self):
+        # no owner or publisher, so blank provider
+        gemini = {'use_constraints': ['License available', 'Good',
+                                      'http://license.com/terms1.html',
+                                      'http://license.com/terms2.html'],
+                  'anchor_href': 'http://license.com/terms.html',
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['License available', 'Good',
+                                   'http://license.com/terms1.html',
+                                   'http://license.com/terms2.html'],
+                       'licence_url': 'http://license.com/terms.html'}))
+
+    def test_licence_anchor(self):
+        # no owner or publisher, so blank provider
+        gemini = {'use_constraints': ['License available', 'Good',
+                                      'http://license.com/terms1.html',
+                                      'http://license.com/terms2.html'],
+                  'anchor_href': 'http://license.com/terms.html',
+                  'anchor_title': 'The terms'}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['License available', 'Good',
+                                   'http://license.com/terms1.html',
+                                   'http://license.com/terms2.html'],
+                       'licence_url': 'http://license.com/terms.html',
+                       'licence_url_title': 'The terms'}))
 
 class TestValidation(HarvestFixtureBase):
 

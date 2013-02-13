@@ -8,7 +8,7 @@ from ckan.lib.helpers import json
 from ckan.logic.schema import default_create_package_schema
 from ckan.logic.action.create import package_create
 from ckan.lib.munge import munge_title_to_name
-from ckanext.spatial.lib import validate_bbox, bbox_query, bbox_query_ordered, bbox_query_ordered_2
+from ckanext.spatial.lib import validate_bbox, bbox_query, bbox_query_ordered
 from ckanext.spatial.tests.base import SpatialTestBase
 
 class TestValidateBbox:

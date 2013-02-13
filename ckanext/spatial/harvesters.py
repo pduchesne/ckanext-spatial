@@ -324,16 +324,13 @@ class GeminiHarvester(SpatialHarvester):
         ]:
             extras[name] = gemini_values[name]
 
-        # Use-constraints can contain values which are:
-        #  * free text
-        #  * licence URL
-        # Store all values in extra['licence'] and if there is a
-        # URL in there, store that in extra['licence-url']
-        extras['licence'] = gemini_values.get('use-constraints', '')
-        if len(extras['licence']):
-            licence_url_extracted = self._extract_first_licence_url(extras['licence'])
-            if licence_url_extracted:
-                extras['licence_url'] = licence_url_extracted
+        # Licence
+        licence_extras = self._process_licence(
+            use_constraints=gemini_values.get('use-constraints', ''),
+            anchor_href=gemini_values.get('use-constraints-anchor-href'),
+            anchor_title=gemini_values.get('use-constraints-anchor-title'),
+            )
+        extras.update(licence_extras)
 
         extras['access_constraints'] = gemini_values.get('limitations-on-public-access','')
         if gemini_values.has_key('temporal-extent-begin'):
@@ -510,6 +507,57 @@ class GeminiHarvester(SpatialHarvester):
 
         return provider, responsible_parties
 
+    @classmethod
+    def _process_licence(cls, use_constraints, anchor_href, anchor_title):
+        '''
+        The three "use-constraints" fields can contain three
+        sorts of values:
+          * use-constraints - free text and URLs
+          * use-constraints-anchor-href - URLs
+          * use-constraints-anchor-title - names for URLs
+
+        These are extracted into their types and deposited into
+        three extra fields:
+          * licence URL -> extras['licence_url']
+          * licence name for the licence URL -> extras['licence_url_title']
+          * free text and subsequent URLs -> extras['licence']
+
+        URLs in use-constraints-anchor-href takes priority over those
+        in use-constraints.
+        '''
+        extras = {}
+
+        free_text = []
+        urls = []
+        if anchor_href:
+            if anchor_title:
+                urls.append((anchor_href, anchor_title))
+            else:
+                urls.append(anchor_href)
+        for use_constraint in use_constraints:
+            if cls._is_url(use_constraint):
+                urls.append(use_constraint)
+            else:
+                free_text.append(use_constraint)
+        extras['licence'] = free_text or ''
+        if urls:
+            # first url goes in the licence_url field
+            url = urls[0]
+            if isinstance(url, tuple):
+                extras['licence_url'] = url[0]
+                extras['licence_url_title'] = url[1]
+            else:
+                extras['licence_url'] = url
+            # subsequent urls just go in the licence field
+            for url in urls[1:]:
+                extras['licence'].append(url)
+
+        # TODO try and match a licence_url to an appropriate license_id and
+        # save it in the license_id field, but that requires the form schema
+        # to allow both license_id and licence.
+
+        return extras
+
     def gen_new_name(self, title):
         name = munge_title_to_name(title).replace('_', '-')
         while '--' in name:
@@ -528,14 +576,21 @@ class GeminiHarvester(SpatialHarvester):
             return None
 
     @classmethod
-    def _extract_first_licence_url(cls, licences):
-        '''Given a list of pieces of licence info, hunt for the first one
-        which looks like a URL and return it. Otherwise returns None.'''
+    def _extract_licence_urls(cls, licences):
+        '''Given a list of pieces of licence info, hunt for all the ones
+        that looks like a URL and return them as a list.'''
+        licence_urls = []
         for licence in licences:
-            o = urlparse(licence)
-            if o.scheme and o.netloc:
-                return licence
-        return None
+            if cls._is_url(licence):
+                licence_urls.append(licence)
+        return licence_urls
+
+    @classmethod
+    def _is_url(cls, licence_str):
+        '''Given a string containing licence text, return boolean
+        whether it looks like a URL or not.'''
+        o = urlparse(licence_str)
+        return o.scheme and o.netloc
 
     def _create_package_from_data(self, package_dict, package = None):
         '''

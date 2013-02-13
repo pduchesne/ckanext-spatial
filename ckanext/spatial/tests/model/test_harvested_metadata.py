@@ -33,14 +33,25 @@ def test_multiplicity_warning():
     gemini_values = gemini_document.read_values()
     assert_equal(gemini_values['guid'], 'B8A22DF4-B0DC-4F0B-A713-0CF5F8784A28')
 
-def test_use_constraints():
-    xml_string = open_xml_fixture('gemini_dataset.xml')
-    gemini_document = GeminiDocument(xml_string)
-    gemini_value = gemini_document.read_value('use-constraints')
-    expected_constraints = ['http://www.ordnancesurvey.co.uk/docs/licences/os-opendata-licence.pdf',
-                            'OS OpenData Licence',
-                            'Reference and PSMA Only',
-                            'http://www.test.gov.uk/licenseurl',
-                            'copyright']
+class TestUseConstraints:
+    @classmethod
+    def setup_class(cls):
+        xml_string = open_xml_fixture('gemini_dataset.xml')
+        cls.gemini_document = GeminiDocument(xml_string)
+        
+    def test_strings(self):
+        gemini_value = self.gemini_document.read_value('use-constraints')
+        expected_constraints = ['Reference and PSMA Only',
+                                'http://www.test.gov.uk/licenseurl',
+                                'copyright']
+        assert_equal(set(gemini_value), set(expected_constraints))
 
-    assert_equal(set(gemini_value), set(expected_constraints))
+    def test_anchor_text(self):
+        gemini_value = self.gemini_document.read_value('use-constraints-anchor-title')
+        expected_constraints = 'OS OpenData Licence'
+        assert_equal(set(gemini_value), set(expected_constraints))
+
+    def test_anchor_href(self):
+        gemini_value = self.gemini_document.read_value('use-constraints-anchor-href')
+        expected_constraints = 'http://www.ordnancesurvey.co.uk/docs/licences/os-opendata-licence.pdf'
+        assert_equal(set(gemini_value), set(expected_constraints))
