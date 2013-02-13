@@ -301,6 +301,7 @@ class GeminiHarvester(SpatialHarvester):
             'UKLP': 'True',
             'harvest_object_id': self.obj.id,
             'harvest_source_reference': self.obj.harvest_source_reference,
+            'metadata-date': metadata_modified_date.strftime('%Y-%m-%d'),
         }
 
         # Just add some of the metadata as extras, not the whole lot
@@ -316,7 +317,6 @@ class GeminiHarvester(SpatialHarvester):
             'dataset-reference-date',
             'resource-type',
             'metadata-language', # Language
-            'metadata-date', # Released
             'coupled-resource',
             'contact-email',
             'frequency-of-update',
