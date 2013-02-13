@@ -113,6 +113,14 @@ class SpatialHarvester(object):
             log.error(message)
 
     def _get_content(self, url):
+        '''
+        Requests the URL and returns the response.
+
+        It returns a str string i.e. not unicode. The content will probably contain
+        character encoding. The XML may have a declaration such as:
+          <?xml version='1.0' encoding='ASCII'?>
+        but often won\'t. The assumed encoding for Gemini2 is UTF8.
+        '''
         url = url.replace(' ','%20')
         http_response = urllib2.urlopen(url)
         return http_response.read()
@@ -147,6 +155,7 @@ class GeminiHarvester(SpatialHarvester):
         try:
             self.import_gemini_object(harvest_object.content,
                                       harvest_object.harvest_source_reference)
+            log.info('Import completed - GUID %s', harvest_object.guid)
             return True
         except Exception, e:
             log.error('Exception during import: %s' % text_traceback())
@@ -171,17 +180,28 @@ class GeminiHarvester(SpatialHarvester):
         Fatal errors simply raise an Exception.
         '''
         log = logging.getLogger(__name__ + '.import')
+
+        # gemini_string is a unicode string because that is the type of the database
+        # field. Harvests store the XML as a non-unicode string in whatever
+        # encoding it came as (using _get_content) - these we can just call str() on
+        # quite safely. But we enclose in the try: block because that will
+        # be needed when we start using _get_content_as_unicode in the future.
+        try:
+            gemini_string = str(gemini_string)
+        except UnicodeEncodeError:
+            pass
         xml = etree.fromstring(gemini_string)
 
         valid, messages = self._get_validator().is_valid(xml)
         if not valid:
             reject = asbool(config.get('ckan.spatial.validator.reject', False))
             log.error('Errors found for object with GUID %s:' % self.obj.guid)
+            out = ''
             if reject:
-                out = '** ABORT! ** Import of this object is aborted because of errors during validation.'
-            else:
-                out = 'Import of this object continues despite errors during validation.'
-            out += '\n\n' + messages[0] + ':\n\n' + '\n\n'.join(messages[1:]) + '\n\n'
+                out = '** ABORT! ** Import of this object is aborted because of errors during validation.\n\n'
+            out += messages[0] + ':\n\n' + '\n\n'.join(messages[1:]) + '\n\n'
+            if not reject:
+                out += 'Validation errors have not caused the import of this object to be aborted.\n\n' # but possibly something else may cause abort later
             if reject:
                 raise Exception(out)
             else:
@@ -198,8 +218,8 @@ class GeminiHarvester(SpatialHarvester):
 
 
     def write_package_from_gemini_string(self, content):
-        '''Create or update a Package based on some content that has
-        come from a URL.
+        '''Create or update a Package based on some content (gemini_string)
+        that has come from a URL.
 
         Returns the package_dict of the result.
         If there is an error, it returns None or raises Exception.
@@ -588,7 +608,7 @@ class GeminiHarvester(SpatialHarvester):
         If it cannot parse the XML it will raise lxml.etree.XMLSyntaxError.
         If it cannot find the GUID element, then gemini_guid will be ''.
 
-        :param content: string containing Gemini XML
+        :param content: string containing Gemini XML (character encoded, not unicode)
         :param url: string giving info about the location of the XML to be
                     used only in validation errors
         :returns: (gemini_string, gemini_guid)
@@ -758,9 +778,11 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
             gemini_string, gemini_guid = self.get_gemini_string_and_guid(content,url)
 
             if gemini_guid:
-                # Create a new HarvestObject for this identifier
-                # Generally the content will be set in the fetch stage, but as we alredy
-                # have it, we might as well save a request
+                # Create a new HarvestObject for this identifier.
+                # Generally the content will be set in the fetch stage, but as we already
+                # have it, we might as well save a request.
+                # NB The content is ascii and probably encoded, but is saved to a unicode
+                # database field.
                 obj = HarvestObject(guid=gemini_guid,
                                     job=harvest_job,
                                     content=gemini_string,

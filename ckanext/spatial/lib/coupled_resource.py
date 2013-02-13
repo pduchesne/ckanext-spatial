@@ -101,7 +101,8 @@ def update_coupled_resources(package, harvest_source_reference):
                     log.info('Service couple is already there (%s, %s, %s)',
                              package.name, ref,
                              _package_name(matching_table_couple.dataset_record))
-                    table_couples_not_matching_pkg.remove(matching_table_couple)
+                    if matching_table_couple in table_couples_not_matching_pkg:
+                        table_couples_not_matching_pkg.remove(matching_table_couple)
                 continue
             # Match just ref with blank service
             matching_table_couples = HarvestCoupledResource.get_by_harvest_source_reference(ref)\

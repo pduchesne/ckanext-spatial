@@ -32,3 +32,15 @@ def test_multiplicity_warning():
     gemini_document = GeminiDocument(xml_string)
     gemini_values = gemini_document.read_values()
     assert_equal(gemini_values['guid'], 'B8A22DF4-B0DC-4F0B-A713-0CF5F8784A28')
+
+def test_use_constraints():
+    xml_string = open_xml_fixture('gemini_dataset.xml')
+    gemini_document = GeminiDocument(xml_string)
+    gemini_value = gemini_document.read_value('use-constraints')
+    expected_constraints = ['http://www.ordnancesurvey.co.uk/docs/licences/os-opendata-licence.pdf',
+                            'OS OpenData Licence',
+                            'Reference and PSMA Only',
+                            'http://www.test.gov.uk/licenseurl',
+                            'copyright']
+
+    assert_equal(set(gemini_value), set(expected_constraints))

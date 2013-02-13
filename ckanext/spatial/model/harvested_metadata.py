@@ -9,6 +9,10 @@ class MappedXmlObject(object):
 
 
 class MappedXmlDocument(MappedXmlObject):
+    '''Represents a XML document (which is metadata). Subclass this and define
+    the self.elements that describe a specific XML metadata format. Then you
+    can instantiate it with an XML metadata document and then extract values
+    from the document using the name mapping.'''
     def __init__(self, xml_str=None, xml_tree=None):
         assert (xml_str or xml_tree is not None), 'Must provide some XML in one format or another'
         self.xml_str = xml_str
@@ -51,22 +55,51 @@ class MappedXmlDocument(MappedXmlObject):
 class MappedXmlElement(MappedXmlObject):
     namespaces = {}
 
-    def __init__(self, name, search_paths=[], multiplicity="*", elements=[]):
+    '''
+    Represents an XML Element in some metadata. Allows its value(s) in the
+    metadata to be accessed by element name.
+
+    Ideally subclass this and add suitable XML namespaces.
+
+    This class deals with a value possibly existing in several different
+    places in the metadata, needing to aggregate the values of several places
+    and deciding whether to return a list or a single value.
+
+    :param name: Name of the element
+    :param search_paths: A list of the XPaths in the metadata to search
+                         to find the value of this element.
+    :param multiplicity: Whether a single value or a list of values is
+                         expected to be returned.
+    :param elements: A list of sub elements
+    :param paths_aggregate: When returning the value, do you search the
+                            XPaths and return the value(s) for the first
+                            one that has value, or do you search them all
+                            and return all the values found?
+    '''
+    def __init__(self, name, search_paths=[], multiplicity="*", elements=[],
+                 paths_aggregate=False):
         self.name = name
         self.search_paths = search_paths
         self.multiplicity = multiplicity
         self.elements = elements or self.elements
+        self.paths_aggregate = paths_aggregate
 
     def read_value(self, tree):
+        '''Given a metadata XML tree, returns the value(s) for this
+        mapped element.
+
+        Multiplicity determines if it is a single value or a list returned.
+        '''
         values = []
         for xpath in self.get_search_paths():
             elements = self.get_elements(tree, xpath)
-            values = self.get_values(elements)
-            if values:
+            values.extend(self.get_values(elements))
+            if values and not self.paths_aggregate:
                 break
         return self.fix_multiplicity(values)
 
     def get_search_paths(self):
+        '''For this element, return a list of the search_path XPaths.'''
         if type(self.search_paths) != type([]):
             search_paths = [self.search_paths]
         else:
@@ -74,9 +107,13 @@ class MappedXmlElement(MappedXmlObject):
         return search_paths
 
     def get_elements(self, tree, xpath):
+        '''For a given metadata XML tree return a list of XML elements
+        at the given XPath.'''
         return tree.xpath(xpath, namespaces=self.namespaces)
 
     def get_values(self, elements):
+        '''Given a list of XML elements (leaves picked from a metadata tree),
+        return all their values as a list.'''
         values = []
         if len(elements) == 0:
             pass
@@ -455,8 +492,22 @@ class GeminiDocument(MappedXmlDocument):
             name="use-constraints",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gco:CharacterString/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gco:CharacterString/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
+                \
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
             ],
+            paths_aggregate=True,
             multiplicity="*",
         ),
         GeminiElement(
