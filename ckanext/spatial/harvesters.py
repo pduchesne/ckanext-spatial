@@ -735,7 +735,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
 
                     # Create a new HarvestObject for this identifier
                     obj = HarvestObject(guid=identifier, job=harvest_job,
-                                        harvest_source_reference=guid)
+                                        harvest_source_reference=identifier)
                     # NB: Gemini uses GUID for the harvest_source_reference
                     #     whereas INSPIRE specifies the Unique Resource
                     #     Identifier
@@ -745,11 +745,15 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
                     used_identifiers.append(identifier)
                 except Exception, e:
                     self._save_gather_error('Error for the identifier %s [%r]' % (identifier,e), harvest_job)
+                    if debug_exception_mode:
+                        raise
                     continue
 
         except Exception, e:
             log.error('Exception: %s' % text_traceback())
             self._save_gather_error('Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
+            if debug_exception_mode:
+                raise
             return None
 
         if len(ids) == 0:
