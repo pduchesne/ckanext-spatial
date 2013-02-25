@@ -323,6 +323,7 @@ class HarvestMetadataApi(SingletonPlugin):
     styled to view in a web browser.
     '''
     implements(IRoutes)
+    implements(IConfigurer, inherit=True)
         
     def before_map(self, route_map):
         harvest_metadata_api_controller = "ckanext.spatial.controllers.api:HarvestMetadataApiController"
@@ -334,3 +335,14 @@ class HarvestMetadataApi(SingletonPlugin):
 
     def after_map(self, route_map):
         return route_map
+
+    def update_config(self, config):
+        here = os.path.dirname(__file__)
+        
+        template_dir = os.path.join(here, 'templates')
+
+        if config.get('extra_template_paths'):
+            config['extra_template_paths'] += ','+template_dir
+        else:
+            config['extra_template_paths'] = template_dir
+
