@@ -22,6 +22,8 @@ def validation_report(package_id=None):
 
     query = model.Session.query(HarvestObject).\
             filter_by(current=True).\
+            join(model.Package).\
+            filter_by(state='active').\
             order_by(HarvestObject.fetch_finished.desc())
 
     if package_id:
