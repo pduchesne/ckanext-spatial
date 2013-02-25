@@ -35,12 +35,13 @@ transformer = None
 def transform_gemini_to_html(gemini_xml):
     from ckanext.spatial.model.harvested_metadata import GeminiDocument
     
-    if True:#not transformer or True: #HACK
+    if not transformer: # transformer is cached between requests
         with resource_stream("ckanext.spatial",
                              "templates/ckanext/spatial/gemini2-html-stylesheet.xsl") as style:
             style_xml = etree.parse(style)
             global transformer
             transformer = etree.XSLT(style_xml)
+
     xml = etree.fromstring(gemini_xml)
     html = transformer(xml)
     body = etree.tostring(html, pretty_print=True)
