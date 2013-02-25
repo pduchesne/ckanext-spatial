@@ -1,12 +1,14 @@
 import urllib2
+from webhelpers.html import literal
 
 from pylons.i18n import _
 
 import ckan.lib.helpers as h, json
 from ckan.lib.base import BaseController, c, g, request, \
                           response, session, render, config, abort, redirect
-
-from ckan.model import Package
+from ckan.model import Package, Session
+from ckanext.harvest.model import HarvestObject
+from ckanext.spatial.lib.helpers import transform_gemini_to_html
 
 class ViewController(BaseController):
 
@@ -37,3 +39,19 @@ class ViewController(BaseController):
         except urllib2.HTTPError as e:
             response.status_int = e.getcode()
             return
+
+    def _get_harvest_object(self,id):
+        obj = Session.query(HarvestObject) \
+                        .filter(HarvestObject.id==id).first()
+        return obj
+
+    def harvest_metadata_html(self, id):
+        obj = self._get_harvest_object(id)
+        if obj is None:
+            abort(404)
+
+        c.header_dict, body_html = transform_gemini_to_html(str(obj.content))
+        
+        c.harvest_metadata_html = literal(body_html)
+
+        return render('ckanext/spatial/harvest_metadata.html')

@@ -42,7 +42,7 @@ from ckan.lib.navl.validators import not_empty
 
 from ckanext.harvest.interfaces import IHarvester
 from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
-                                    HarvestObjectError
+                                    HarvestObjectError, HarvestGatherLogger
 
 from ckanext.spatial.model import GeminiDocument
 from ckanext.spatial.lib.csw_client import CswService
@@ -706,7 +706,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
             }
 
     def gather_stage(self, harvest_job):
-        log = logging.getLogger(__name__ + '.CSW.gather')
+        log = HarvestGatherLogger(harvest_job)
         log.debug('GeminiCswHarvester gather_stage for job: %r', harvest_job)
         # Get source URL
         url = harvest_job.source.url
@@ -881,7 +881,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
             }
 
     def gather_stage(self,harvest_job):
-        log = logging.getLogger(__name__ + '.WAF.gather')
+        log = HarvestGatherLogger(harvest_job)
         log.debug('GeminiWafHarvester gather_stage for job: %r', harvest_job)
 
         self.harvest_job = harvest_job
@@ -899,7 +899,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
 
         ids = []
         try:
-            for url in self._extract_urls(content,url):
+            for url in self._extract_urls(content, url, log):
                 try:
                     content = self._get_content(url)
                 except Exception, e:
@@ -949,7 +949,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         return True
 
 
-    def _extract_urls(self, content, base_url):
+    def _extract_urls(self, content, base_url, log):
         '''
         Get the URLs out of a WAF index page
         '''

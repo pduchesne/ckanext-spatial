@@ -1,5 +1,8 @@
 # template helpers
 
+from pkg_resources import resource_stream
+from lxml import etree
+
 from ckan import model
 from ckan.lib.base import json
 from ckanext.harvest.model import HarvestObject, HarvestCoupledResource
@@ -28,3 +31,27 @@ def get_coupled_packages(pkg):
                    couple.dataset_record.state == 'active']
         return coupled_packages
 
+transformer = None
+def transform_gemini_to_html(gemini_xml):
+    from ckanext.spatial.model.harvested_metadata import GeminiDocument
+    
+    if True:#not transformer or True: #HACK
+        with resource_stream("ckanext.spatial",
+                             "templates/ckanext/spatial/gemini2-html-stylesheet.xsl") as style:
+            style_xml = etree.parse(style)
+            global transformer
+            transformer = etree.XSLT(style_xml)
+    xml = etree.fromstring(gemini_xml)
+    html = transformer(xml)
+    body = etree.tostring(html, pretty_print=True)
+
+    gemini_doc = GeminiDocument(xml_tree=xml)
+    publishers = gemini_doc.read_value('responsible-organisation')
+    publisher = publishers[0].get('organisation-name', '') if publishers else ''
+    header = {'title': gemini_doc.read_value('title'),
+              'guid': gemini_doc.read_value('guid'),
+              'publisher': publisher,
+              'language': gemini_doc.read_value('metadata-language'),
+              }
+    return header, body
+              

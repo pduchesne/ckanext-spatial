@@ -52,6 +52,7 @@ class SpatialMetadata(SingletonPlugin):
 
     implements(IPackageController, inherit=True)
     implements(IConfigurable, inherit=True)
+    implements(IRoutes, inherit=True)
 
     def configure(self, config):
         if not config.get('ckan.spatial.testing',False):
@@ -108,6 +109,16 @@ class SpatialMetadata(SingletonPlugin):
 
     def delete(self, package):
         save_package_extent(package.id,None)
+
+    def before_map(self, route_map):
+        view_controller = 'ckanext.spatial.controllers.view:ViewController'
+        route_map.connect('/harvest/gemini-object/:id', controller=view_controller,
+                          action='harvest_metadata_html')
+
+        return route_map
+
+    def after_map(self, route_map):
+        return route_map
 
 class SpatialQuery(SingletonPlugin):
 
@@ -314,13 +325,11 @@ class HarvestMetadataApi(SingletonPlugin):
     implements(IRoutes)
         
     def before_map(self, route_map):
-        controller = "ckanext.spatial.controllers.api:HarvestMetadataApiController"
+        harvest_metadata_api_controller = "ckanext.spatial.controllers.api:HarvestMetadataApiController"
 
-        route_map.connect("/api/2/rest/harvestobject/:id/xml", controller=controller,
+        route_map.connect("/api/2/rest/harvestobject/:id/xml", controller=harvest_metadata_api_controller,
                           action="display_xml")
-        route_map.connect("/api/2/rest/harvestobject/:id/html", controller=controller,
-                          action="display_html")
-
+        route_map.redirect('/api/2/rest/harvestobject/{id:[^\/]*}/html', '/harvest/gemini-object/{id}')
         return route_map
 
     def after_map(self, route_map):

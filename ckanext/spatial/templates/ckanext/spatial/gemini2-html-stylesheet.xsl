@@ -18,29 +18,9 @@ doesn't deal with gco:nilReason
 -->
 	<xsl:template match="/">
 		<!-- HTML head/body, with standard metadata -->
-		<html>
-			<head>
-				<title>GEMINI record about <xsl:value-of select="gmd:MD_Metadata/gmd:identificationInfo/*/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString"/>
-				</title>
-				<meta name="DC.source">
-					<xsl:attribute name="content">GEMINI metadata record with GUID: <xsl:value-of select="gmd:MD_Metadata/gmd:fileIdentifier/gco:CharacterString"/></xsl:attribute>
-				</meta>
-				<meta name="DC.publisher">
-					<xsl:attribute name="content"><xsl:value-of select="gmd:MD_Metadata/gmd:contact/gmd:CI_ResponsibleParty/gmd:organisationName/gco:CharacterString"/></xsl:attribute>
-				</meta>
-				<meta name="DC.subject" scheme="eGMS.IPSV" content="metadata"/>
-				<meta name="DC.language" scheme="DCTERMS.ISO639-2">
-					<xsl:attribute name="content"><xsl:value-of select="gmd:MD_Metadata/gmd:language/gmd:LanguageCode/@codeListValue"/></xsl:attribute>
-				</meta>
-				<!-- insert the required CSS stylesheet in here -->
-				<!-- e.g. http://intranet.ordsvy.gov.uk/intranet/css/style.css; http://www.ordnancesurvey.co.uk/oswebsite/a/css/global/screen.css; http://location.defra.gov.uk/wp-content/themes/uklocation2/style.css; http://data.gov.uk/sites/default/files/css/css_523a702a5fae8f07ad6cce1f9cf4efce.css -->
-				<!-- of these, data.gov.uk worked the best, because the h1 was distinct - but the site has now changed. It would be better to have the h2,h3,h4,h5 as left aligned, with the p to the right & on the same line - perhaps divs? with a few classes? perhaps (dare I say it?) as tables, with the element name in the left column, value in the right? -->
-		<!--Removed, as link is broken & css lost		<link rel="stylesheet" href="/css/css_523a702a5fae8f07ad6cce1f9cf4efce.css" type="text/css" media="screen"/> -->
-			</head>
-			<body>
+			<div>
 				<xsl:apply-templates select="gmd:MD_Metadata"/>
-			</body>
-		</html>
+			</div>
 	</xsl:template>
 	<xsl:template match="gmd:MD_Metadata">
 		<!-- the meat of the ISO 19139 / GEMINI transformation -->
@@ -85,7 +65,10 @@ doesn't deal with gco:nilReason
 			<h2 title="INSPIRE Coupled resource">Coupled resource</h2>
 			<xsl:for-each select="gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn">
 				<p title="Coupled resource">
+                                  <a>
+					<xsl:attribute name="href"><xsl:value-of select="@xlink:href"/></xsl:attribute>
 					<xsl:value-of select="@xlink:href"/>
+                                  </a>
 				</p>
 			</xsl:for-each>
 		</xsl:if>
@@ -141,7 +124,7 @@ doesn't deal with gco:nilReason
 		</xsl:for-each>
 		<!-- section break -->
 		<h1>Geographic location</h1>
-		<h2 title="INSPIRE Geographic bounding box"/>
+		<h2 title="INSPIRE Geographic bounding box">Geographic bounding box</h2>
 		<h3>West bounding longitude</h3>
 		<p title="West bounding longitude">
 			<xsl:value-of select="gmd:identificationInfo/*/*/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/ gmd:westBoundLongitude/gco:Decimal"/>
@@ -289,13 +272,17 @@ doesn't deal with gco:nilReason
 			<xsl:value-of select="gmd:dateStamp/gco:Date|gmd:dateStamp/gco:DateTime"/>
 		</p>
 		<h2 title="INSPIRE Metadata language">Metadata language</h2>
-		<xsl:value-of select="gmd:language/gmd:LanguageCode/@codeListValue"/>
+                <p>
+         		<xsl:value-of select="gmd:language/gmd:LanguageCode/@codeListValue"/>
+                </p>
 	</xsl:template>
 	<!-- templates used from multiple places -->
 	<xsl:template match="gmd:CI_Citation">
 		<!-- not for the main citation of the dataset, which is handled in rather more detail -->
 		<h4 title="INSPIRE title">title</h4>
-		<xsl:value-of select="gmd:title/gco:CharacterString"/>
+		<p title="title">
+                      <xsl:value-of select="gmd:title/gco:CharacterString"/>
+                </p>
 		<h4 title="INSPIRE reference date">reference date</h4>
 		<xsl:apply-templates select="gmd:date/gmd:CI_Date"/>
 	</xsl:template>
@@ -312,6 +299,7 @@ doesn't deal with gco:nilReason
 	</xsl:template>
 	<!-- 1.0b change; refactored from being specific to Responsible Party Contact info -->
 	<xsl:template match="gmd:CI_OnlineResource">
+              <div class="list-item">
 		<xsl:variable name="URL" select="gmd:linkage/gmd:URL"/>
 		<p>
 			<a>
@@ -340,6 +328,7 @@ doesn't deal with gco:nilReason
 			<p title="Online resource: function">function: <xsl:apply-templates select="gmd:function"/>
 			</p>
 		</xsl:if>
+              </div>
 	</xsl:template>
 	<xsl:template match="gmd:CI_OnLineFunctionCode">
 		<xsl:value-of select="@codeListValue"/>
