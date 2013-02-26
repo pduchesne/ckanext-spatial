@@ -668,6 +668,10 @@ class GeminiHarvester(SpatialHarvester):
                     used only in validation errors
         :returns: (gemini_string, gemini_guid)
         '''
+        try:
+            gemini_string = str(gemini_string)
+        except UnicodeEncodeError:
+            pass
         xml = etree.fromstring(content)
 
         # The validator and GeminiDocument don\'t like the container
