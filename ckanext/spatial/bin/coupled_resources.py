@@ -185,9 +185,9 @@ class CoupledResources(object):
                     service_stats.add('Service couples not completed', service_record.name)
             else:
                 if service_type in ('view', 'download'):
-                    service_stats.add('No couples for %s service type (where it is mandatory)', service_type.name, service_type)
+                    service_stats.add('No couples for %s service type (where it is mandatory)', service_type, service_type)
                 else:
-                    service_stats.add('No couples (but not mandatory for service type %s)' % service_type.name, service_type)
+                    service_stats.add('No couples (but not mandatory for service type %s)' % service_type, service_type)
                 continue                
 
         model.Session.remove()
