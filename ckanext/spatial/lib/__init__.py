@@ -169,6 +169,9 @@ def bbox_query_ordered(bbox, srid=None):
     # First get the area of the query box
     sql = "SELECT ST_Area(GeomFromText(:query_bbox, :query_srid));"
     params['search_area'] = Session.execute(sql, params).fetchone()[0]
+    if params['search_area'] == 0:
+        # zero area gives a 'divide by zero' error, so avoid it
+        params['search_area'] = 0.1
 
     # Uses spatial ranking method from "USGS - 2006-1279" (Lanfear)
     sql = """SELECT ST_AsBinary(package_extent.the_geom) AS package_extent_the_geom,
