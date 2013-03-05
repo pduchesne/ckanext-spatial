@@ -3,14 +3,16 @@
   xmlns:xi="http://www.w3.org/2001/XInclude"
   py:strip="">
 
-  <py:def function="page_title">${c.header_dict['title']} - Harvested Gemini Metadata</py:def>
+  <py:def function="page_title">${c.header_dict.get('title', '')} - Harvested Gemini Metadata</py:def>
   <py:def function="content_class"><!--unboxed--></py:def>
 
   <py:def function="optional_head">
+   <py:if test="c.header_dict">
     <meta name="DC.source" content="GEMINI metadata record with GUID: ${c.header_dict['guid']}"/>
     <meta name="DC.publisher" content="${c.header_dict['publisher']}"/>
     <meta name="DC.subject" scheme="eGMS.IPSV" content="metadata"/>
     <meta name="DC.language" scheme="DCTERMS.ISO639-2" content="${c.header_dict['language']}"/>
+   </py:if>
   </py:def>
 
   <div py:match="content">

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="http://www.w3.org/TR/1999/xhtml" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:gml="http://www.opengis.net/gml" xmlns:gml32="http://www.opengis.net/gml/3.2" exclude-result-prefixes="gmd gco srv xlink gml gml32">
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="http://www.w3.org/TR/1999/xhtml" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:gml="http://www.opengis.net/gml" xmlns:gml32="http://www.opengis.net/gml/3.2" xmlns:gmx="http://www.isotc211.org/2005/gmx" exclude-result-prefixes="gmd gco srv xlink gml gml32">
 	<xsl:output method="html" encoding="iso-8859-1" indent="yes" doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"/>
 	<!--
 		<meta name="DC.creator" content="Peter Parslow"/>
@@ -229,15 +229,18 @@ doesn't deal with gco:nilReason
 				<xsl:value-of select="gmd:explanation/gco:CharacterString"/>
 			</p>
 		</xsl:for-each>
-		<h2 title="not in INSPIRE">Data format</h2>
-		<h3>name of format</h3>
+		<h2 title="not in INSPIRE">Data formats</h2>
+                <xsl:for-each select="gmd:distributionInfo/gmd:MD_Distribution/gmd:distributionFormat">
+		<h3 title="not in INSPIRE">Data format</h3>
+		<h4>name of format</h4>
 		<p title="Data format: name">
-			<xsl:value-of select="gmd:distributionInfo/gmd:MD_Distribution/gmd:distributionFormat/gmd:MD_Format/gmd:name/gco:CharacterString"/>
+			<xsl:value-of select="gmd:MD_Format/gmd:name/gco:CharacterString"/>
 		</p>
-		<h3>version of format</h3>
+		<h4>version of format</h4>
 		<p title="Data format: version">
-			<xsl:value-of select="gmd:distributionInfo/gmd:MD_Distribution/gmd:distributionFormat/gmd:MD_Format/gmd:version/gco:CharacterString"/>
+			<xsl:value-of select="gmd:MD_Format/gmd:version/gco:CharacterString"/>
 		</p>
+                </xsl:for-each>
 		<!-- section break -->
 		<h1>Constraints related to access and use</h1>
 		<xsl:for-each select="gmd:identificationInfo/*/gmd:resourceConstraints">
@@ -247,6 +250,18 @@ doesn't deal with gco:nilReason
 				<p title="Use constraints">
 					<xsl:value-of select="*/gmd:useLimitation/gco:CharacterString"/>
 				</p>
+			    <xsl:if test="*/gmd:useLimitation/gmx:Anchor">
+                                <h4 title="Anchor relating to access and use">Anchor</h4>
+				<p title="Use constraints anchor title">
+                                        <xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/text()"/>
+				</p>
+				<p title="Use constraints anchor link">
+                                    <a>
+					<xsl:attribute name="href"><xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/@xlink:href"/></xsl:attribute>
+                                        <xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/@xlink:href"/>
+                                    </a>
+				</p>
+			    </xsl:if>
 			</xsl:if>
 			<xsl:if test="*/gmd:otherConstraints">
 				<h3 title="INSPIRE Limitations on public access">Limitations on public access</h3>

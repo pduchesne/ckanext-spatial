@@ -2,11 +2,15 @@
 
 from pkg_resources import resource_stream
 from lxml import etree
+from paste.deploy.converters import asbool
+from pylons import config
 
 from ckan import model
 from ckan.lib.base import json
 from ckanext.harvest.model import HarvestObject, HarvestCoupledResource
 from ckanext.spatial.lib.coupled_resource import extract_gemini_harvest_source_reference
+
+log = __import__('logging').getLogger(__name__)
 
 def get_coupled_packages(pkg):
     res_type = pkg.extras.get('resource-type')
@@ -35,7 +39,9 @@ transformer = None
 def transform_gemini_to_html(gemini_xml):
     from ckanext.spatial.model.harvested_metadata import GeminiDocument
     
-    if not transformer: # transformer is cached between requests
+    if not transformer or \
+           not asbool(config.get('ckan.spatial.cache_gemini_xsl', True)):
+        # transformer is cached between requests unless a developer wants to avoid this with the config option
         with resource_stream("ckanext.spatial",
                              "templates/ckanext/spatial/gemini2-html-stylesheet.xsl") as style:
             style_xml = etree.parse(style)
@@ -43,7 +49,13 @@ def transform_gemini_to_html(gemini_xml):
             transformer = etree.XSLT(style_xml)
 
     xml = etree.fromstring(gemini_xml)
-    html = transformer(xml)
+    try:
+        html = transformer(xml)
+    except etree.XSLTApplyError, e:
+        log.error('GEMINI2 XSLT error: %r\nGEMINI2: %s', e.error_log,
+                  '\n'.join(gemini_xml.split('\n')[1:5]))
+        body = '<h1>Server Error</h1><p>Error extracting values from GEMINI2 document. Administrators have been notified.</p>'
+        return {}, body
     body = etree.tostring(html, pretty_print=True)
 
     gemini_doc = GeminiDocument(xml_tree=xml)
