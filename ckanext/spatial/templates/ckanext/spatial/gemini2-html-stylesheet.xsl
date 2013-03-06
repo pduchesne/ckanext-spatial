@@ -251,14 +251,11 @@ doesn't deal with gco:nilReason
 					<xsl:value-of select="*/gmd:useLimitation/gco:CharacterString"/>
 				</p>
 			    <xsl:if test="*/gmd:useLimitation/gmx:Anchor">
-                                <h4 title="Anchor relating to access and use">Anchor</h4>
-				<p title="Use constraints anchor title">
-                                        <xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/text()"/>
-				</p>
-				<p title="Use constraints anchor link">
+				<p title="Use constraints anchor">
                                     <a>
 					<xsl:attribute name="href"><xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/@xlink:href"/></xsl:attribute>
-                                        <xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/@xlink:href"/>
+                                        <xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/text()"/>
+                                        (<xsl:value-of select="*/gmd:useLimitation/gmx:Anchor/@xlink:href"/>)
                                     </a>
 				</p>
 			    </xsl:if>
