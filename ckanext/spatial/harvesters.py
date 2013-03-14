@@ -656,7 +656,7 @@ class GeminiHarvester(SpatialHarvester):
 
         return package_dict
 
-    def get_gemini_string_and_guid(self,content,url=None):
+    def get_gemini_string_and_guid(self,gemini_string,url=None):
         '''From a string buffer containing Gemini XML, return the tree
         under gmd:MD_Metadata and the GUID for it. 
 
@@ -672,7 +672,7 @@ class GeminiHarvester(SpatialHarvester):
             gemini_string = str(gemini_string)
         except UnicodeEncodeError:
             pass
-        xml = etree.fromstring(content)
+        xml = etree.fromstring(gemini_string)
 
         # The validator and GeminiDocument don\'t like the container
         metadata_tag = '{http://www.isotc211.org/2005/gmd}MD_Metadata'
@@ -933,7 +933,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
                             ids.append(obj.id)
 
 
-                    except Exception,e:
+                    except Exception, e:
                         msg = 'Could not get GUID for source %s: %r' % (url,e)
                         self._save_gather_error(msg,harvest_job)
                         continue

@@ -6,6 +6,9 @@ xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/
   <gmd:nosuchelement>
       <gco:CharacterString>test-record-01</gco:CharacterString>
    </gmd:nosuchelement>
+   <gmd:fileIdentifier xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:gml="http://www.opengis.net/gml">
+      <gco:CharacterString>test</gco:CharacterString>
+   </gmd:fileIdentifier>
    <gmd:language>
       <LanguageCode xmlns="http://www.isotc211.org/2005/gmd"
                     codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#LanguageCode"
