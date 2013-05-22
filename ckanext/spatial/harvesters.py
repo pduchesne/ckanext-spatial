@@ -336,7 +336,7 @@ class GeminiHarvester(SpatialHarvester):
             'frequency-of-update',
             'spatial-data-service-type',
         ]:
-            extras[name] = gemini_values[name].strip()
+            extras[name] = gemini_values[name]
 
         # Licence
         licence_extras = self._process_licence(
@@ -672,7 +672,7 @@ class GeminiHarvester(SpatialHarvester):
 
     def get_gemini_string_and_guid(self,gemini_string,url=None):
         '''From a string buffer containing Gemini XML, return the tree
-        under gmd:MD_Metadata and the GUID for it.
+        under gmd:MD_Metadata and the GUID for it. 
 
         If it cannot parse the XML it will raise lxml.etree.XMLSyntaxError.
         If it cannot find the GUID element, then gemini_guid will be ''.
