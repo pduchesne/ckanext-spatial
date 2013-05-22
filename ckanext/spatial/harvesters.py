@@ -911,7 +911,9 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         self.harvest_job = harvest_job
 
         # Get source URL
+        Session.refresh(harvest_job.source) # in case the url has recently changed
         url = harvest_job.source.url
+        log.debug('WAF URL: %r', url)
 
         # Get contents
         try:
