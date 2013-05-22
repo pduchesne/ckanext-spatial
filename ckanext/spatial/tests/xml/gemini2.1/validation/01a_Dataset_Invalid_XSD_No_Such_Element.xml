@@ -3,16 +3,15 @@
 http://www.isotc211.org/2005/srv
 http://eden.ign.fr/xsd/isotc211/isofull/20090316/srv/srv.xsd"
 xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmd="http://www.isotc211.org/2005/gmd">
-  <gmd:nosuchelement>
-      <gco:CharacterString>test-record-01</gco:CharacterString>
-   </gmd:nosuchelement>
-   <!-- missing the gmd:fileIdentifier/gco:CharacterString to cause
-        the validation error -->
-   <gmd:language>
-      <LanguageCode xmlns="http://www.isotc211.org/2005/gmd"
+   <gmd:fileIdentifier>
+      <gco:CharacterString>test-record-01a</gco:CharacterString>
+<!-- language moved inside fileIdentifier to make the validation fail -->
+      <gmd:language>
+         <LanguageCode xmlns="http://www.isotc211.org/2005/gmd"
                     codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#LanguageCode"
                     codeListValue="eng"/>
-   </gmd:language>
+      </gmd:language>
+   </gmd:fileIdentifier>
    <gmd:parentIdentifier>
       <gco:CharacterString>test-record-08</gco:CharacterString>
    </gmd:parentIdentifier>

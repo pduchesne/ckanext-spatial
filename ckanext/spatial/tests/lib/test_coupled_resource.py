@@ -1,6 +1,7 @@
 from nose.tools import assert_equal
 from pylons import config
 from pprint import pprint
+import copy
 
 from ckan.logic import get_action
 from ckan.lib.create_test_data import CreateTestData
@@ -9,7 +10,7 @@ from ckan.lib.base import json
 from ckanext.harvest.model import HarvestSource, HarvestJob, HarvestObject, HarvestCoupledResource
 
 from ckanext.spatial.lib.coupled_resource import extract_guid, extract_gemini_harvest_source_reference, update_coupled_resources
-
+from ckanext.spatial.tests.base import SpatialTestBase
 
 GOOD_CSW_RECORD = 'http://ogcdev.bgs.ac.uk/geonetwork/srv/en/csw?SERVICE=CSW&amp;REQUEST=GetRecordById&amp;ID=9df8df52-d788-37a8-e044-0003ba9b0d98&amp;elementSetName=full&amp;OutputSchema=http://www.isotc211.org/2005/gmd'
 GOOD_CSW_RECORD_ID = '9df8df52-d788-37a8-e044-0003ba9b0d98'
@@ -36,7 +37,7 @@ def test_extract_gemini_harvest_source_reference():
 
 ref_prefix = 'http://waf/'
 
-class TestUpdateCoupledResources:
+class TestUpdateCoupledResources(SpatialTestBase):
     def setup(self):
         # Create fixtures
         CreateTestData.create_arbitrary([
@@ -166,10 +167,10 @@ class TestUpdateCoupledResources:
         
 
     def _get_coupled_resources(self):
-        return [(couple.service_record.name if couple.service_record else None,
+        return set([(couple.service_record.name if couple.service_record else None,
                  couple.harvest_source_reference.replace(ref_prefix, ''),
                  couple.dataset_record.name if couple.dataset_record else None)\
-                for couple in model.Session.query(HarvestCoupledResource)]
+                for couple in model.Session.query(HarvestCoupledResource)])
 
     def _create_coupled_resource(self, service_name, ref, dataset_name):
         service = model.Package.by_name(unicode(service_name or ''))
@@ -241,17 +242,22 @@ def change_line(couples, line_to_change, replacement_line):
     '''Given a list of coupled resource tuples, returns a similar
     list, but with the line that matches line_to_change replaced
     with replacement_line.'''
-    line_number = couples.index(line_to_change)
-    return couples[:line_number] + [replacement_line] + couples[line_number+1:]
+    couples = copy.deepcopy(couples)
+    couples.remove(line_to_change)
+    couples.add(replacement_line)
+    return couples
 
 def add_line(couples, line_to_add):
     '''Given a list of coupled resource tuples, returns a similar
     list, but with the line added.'''
-    return couples[:] + [line_to_add]
+    couples = copy.deepcopy(couples)
+    couples.add(line_to_add)
+    return couples
 
 def remove_line(couples, line_to_remove):
     '''Given a list of coupled resource tuples, returns a similar
     list, but with the line added.'''
-    line_number = couples.index(line_to_remove)
-    return couples[:line_number] + couples[line_number+1:]
+    couples = copy.deepcopy(couples)
+    couples.remove(line_to_remove)
+    return couples
 

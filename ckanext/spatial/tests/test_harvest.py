@@ -30,9 +30,9 @@ class HarvestFixtureBase(SpatialTestBase):
         SpatialTestBase.setup_class()
 
         # Start simple HTTP server that serves XML test files
-        if not cls.serving:
+        if not HarvestFixtureBase.serving:
             serve()
-            cls.serving = True
+            HarvestFixtureBase.serving = True
             # gets shutdown when nose finishes all tests,
             # so don't restart ever
 
@@ -322,7 +322,7 @@ class TestHarvest(HarvestFixtureBase):
         harvester.import_stage(obj)
 
         # No object errors
-        assert len(obj.errors) == 0
+        assert len(obj.errors) == 0, obj.errors
 
         package_dict = get_action('package_show_rest')(self.context,{'id':obj.package_id})
 
@@ -376,7 +376,7 @@ class TestHarvest(HarvestFixtureBase):
                 raise AssertionError('Extra %s not present in package' % key)
 
             if not package_dict['extras'][key] == value:
-                raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
+                raise AssertionError('Unexpected value for extra %s: %r (was expecting %r)' % \
                     (key, package_dict['extras'][key], value))
 
         expected_resource = {
@@ -1009,7 +1009,7 @@ class TestValidation(HarvestFixtureBase):
 
     @classmethod
     def setup_class(cls):
-        SpatialHarvester._validator = Validators(profiles=['iso19139eden', 'constraints', 'gemini2'])
+        SpatialHarvester._validator = Validators(profiles=['iso19139eden', 'constraints-1.4', 'gemini2'])
         HarvestFixtureBase.setup_class()
 
     def get_validation_errors(self, validation_test_filename):
@@ -1023,19 +1023,34 @@ class TestValidation(HarvestFixtureBase):
 
         harvester = GeminiDocHarvester()
 
-        # Gather stage for GeminiDocHarvester includes validation
         object_ids = harvester.gather_stage(job)
+        if not object_ids:
+            # this would only occur for e.g. missing GUID
+            errors = '; '.join([gather_error.message for gather_error in job.gather_errors])
+            return errors
+
+        obj = HarvestObject.get(object_ids[0])
+        # No fetch stage for GeminiHarvestDocHarvester
+        # Import stage includes validation
+        harvester.import_stage(obj)
 
         # Check the validation errors
-        errors = '; '.join([gather_error.message for gather_error in job.gather_errors])
+        errors = '; '.join([object_error.message for object_error in obj.errors])
         return errors
 
     def test_01_dataset_fail_iso19139_schema(self):
         errors = self.get_validation_errors('01_Dataset_Invalid_XSD_No_Such_Element.xml')
         assert len(errors) > 0
+        #assert_in('ISO19139', errors)
+        #assert_in('(gmx.xsd)', errors)
+        assert_in('Could not get the GUID', errors)
+
+    def test_01a_dataset_fail_iso19139_schema(self):
+        errors = self.get_validation_errors('01a_Dataset_Invalid_XSD_No_Such_Element.xml')
+        assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd)', errors)
-        assert_in('Could not get the GUID', errors)
+        assert_in('Element \'{http://www.isotc211.org/2005/gmd}language\': This element is not expected', errors)
 
     def test_02_dataset_fail_constraints_schematron(self):
         errors = self.get_validation_errors('02_Dataset_Invalid_19139_Missing_Data_Format.xml')
@@ -1053,12 +1068,12 @@ class TestValidation(HarvestFixtureBase):
         errors = self.get_validation_errors('04_Dataset_Valid.xml')
         assert len(errors) == 0
 
-    def test_05_series_fail_iso19139_schema(self):
-        errors = self.get_validation_errors('05_Series_Invalid_XSD_No_Such_Element.xml')
+    def test_05a_series_fail_iso19139_schema(self):
+        errors = self.get_validation_errors('05a_Series_Invalid_XSD_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd)', errors)
-        assert_in('Could not get the GUID', errors)
+        assert_in('Element \'{http://www.isotc211.org/2005/gmd}language\': This element is not expected., line 5', errors)
 
     def test_06_series_fail_constraints_schematron(self):
         errors = self.get_validation_errors('06_Series_Invalid_19139_Missing_Data_Format.xml')
@@ -1076,12 +1091,12 @@ class TestValidation(HarvestFixtureBase):
         errors = self.get_validation_errors('08_Series_Valid.xml')
         assert len(errors) == 0
 
-    def test_09_service_fail_iso19139_schema(self):
-        errors = self.get_validation_errors('09_Service_Invalid_No_Such_Element.xml')
+    def test_09a_service_fail_iso19139_schema(self):
+        errors = self.get_validation_errors('09a_Service_Invalid_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd & srv.xsd)', errors)
-        assert_in('Could not get the GUID', errors)
+        assert_in('Element \'{http://www.isotc211.org/2005/gmd}language\': This element is not expected., line 5', errors)
 
     def test_10_service_fail_constraints_schematron(self):
         errors = self.get_validation_errors('10_Service_Invalid_19139_Level_Description.xml')

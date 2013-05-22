@@ -3,26 +3,22 @@
 http://www.isotc211.org/2005/srv
 http://eden.ign.fr/xsd/isotc211/isofull/20090316/srv/srv.xsd"
 xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmd="http://www.isotc211.org/2005/gmd">
-  <gmd:nosuchelement>
-      <gco:CharacterString>test-record-01</gco:CharacterString>
-   </gmd:nosuchelement>
-   <!-- missing the gmd:fileIdentifier/gco:CharacterString to cause
-        the validation error -->
-   <gmd:language>
-      <LanguageCode xmlns="http://www.isotc211.org/2005/gmd"
+   <gmd:fileIdentifier>
+      <gco:CharacterString>test-record-05a</gco:CharacterString>
+<!-- language moved inside fileIdentifier to make the validation fail -->
+      <gmd:language>
+         <LanguageCode xmlns="http://www.isotc211.org/2005/gmd"
                     codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#LanguageCode"
                     codeListValue="eng"/>
-   </gmd:language>
-   <gmd:parentIdentifier>
-      <gco:CharacterString>test-record-08</gco:CharacterString>
-   </gmd:parentIdentifier>
+      </gmd:language>
+   </gmd:fileIdentifier>
    <gmd:hierarchyLevel>
       <MD_ScopeCode xmlns="http://www.isotc211.org/2005/gmd"
                     codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_ScopeCode"
-                    codeListValue="dataset"/>
+                    codeListValue="series"/>
    </gmd:hierarchyLevel>
    <gmd:hierarchyLevelName>
-      <gco:CharacterString>dataset</gco:CharacterString>
+      <gco:CharacterString>series</gco:CharacterString>
    </gmd:hierarchyLevelName>
    <gmd:contact>
       <gmd:CI_ResponsibleParty>
@@ -92,7 +88,7 @@ xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/
          <gmd:citation>
             <gmd:CI_Citation>
                <gmd:title>
-                  <gco:CharacterString>Test Record 01 Dataset  No Such Element Name</gco:CharacterString>
+                  <gco:CharacterString>Test Record 05 Series No Such Element Name</gco:CharacterString>
                </gmd:title>
                <gmd:alternateTitle>
                   <gco:CharacterString>Also known as xxx</gco:CharacterString>
@@ -112,7 +108,7 @@ xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/
                <gmd:identifier>
                   <gmd:RS_Identifier>
                      <gmd:code>
-                        <gco:CharacterString>1300392329603</gco:CharacterString>
+                        <gco:CharacterString>1400392329603</gco:CharacterString>
                      </gmd:code>
                      <gmd:codeSpace>
                         <gco:CharacterString>CEH:EIDC:</gco:CharacterString>
@@ -548,45 +544,6 @@ xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/
                                                codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_OnLineFunctionCode"
                                                codeListValue="information"/>
                      </gmd:function>
-                  </gmd:CI_OnlineResource>
-               </gmd:onLine>
-            </gmd:MD_DigitalTransferOptions>
-         </gmd:transferOptions>
-         <gmd:transferOptions>
-            <gmd:MD_DigitalTransferOptions>
-               <gmd:onLine>
-                  <gmd:CI_OnlineResource>
-                     <gmd:linkage>
-                        <gmd:URL>http://gateway.ceh.ac.uk/download?fileIdentifier=82a0f4a1-01ff-4ed1-853e-224d8404b3fd</gmd:URL>
-                     </gmd:linkage>
-                     <gmd:name>
-                        <gco:CharacterString>Dataset download</gco:CharacterString>
-                     </gmd:name>
-                     <gmd:description>
-                        <gco:CharacterString>Link to download this dataset</gco:CharacterString>
-                     </gmd:description>
-                     <gmd:function>
-                        <CI_OnLineFunctionCode xmlns="http://www.isotc211.org/2005/gmd"
-                                               codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_OnLineFunctionCode"
-                                               codeListValue="order"/>
-                     </gmd:function>
-                  </gmd:CI_OnlineResource>
-               </gmd:onLine>
-            </gmd:MD_DigitalTransferOptions>
-         </gmd:transferOptions>
-         <gmd:transferOptions>
-            <gmd:MD_DigitalTransferOptions>
-               <gmd:onLine>
-                  <gmd:CI_OnlineResource>
-                     <gmd:linkage>
-                        <gmd:URL>http://lasigprod.nerc-lancaster.ac.uk/arcgis/services/LandCoverMap/LCM2007_GB_1k_DOM_AGG/MapServer/WMSServer?request=GetCapabilities&amp;service=WMS</gmd:URL>
-                     </gmd:linkage>
-                     <gmd:name>
-                        <gco:CharacterString>Web Map Service</gco:CharacterString>
-                     </gmd:name>
-                     <gmd:description>
-                        <gco:CharacterString>A web map service (WMS) is available for this data</gco:CharacterString>
-                     </gmd:description>
                   </gmd:CI_OnlineResource>
                </gmd:onLine>
             </gmd:MD_DigitalTransferOptions>
