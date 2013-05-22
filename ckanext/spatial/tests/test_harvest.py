@@ -420,10 +420,10 @@ class TestHarvest(HarvestFixtureBase):
         assert job.gather_errors[0].harvest_job_id == job.id
         assert 'Error parsing the document' in job.gather_errors[0].message
 
-    def test_harvest_error_404(self):
+    def test_harvest_error_connection(self):
         # Create source
         source_fixture = {
-            'url': u'http://127.0.0.1:8999/gemini2.1/not_there.xml',
+            'url': u'http://127.0.0.1:123456/wrong_port',
             'type': u'gemini-single'
         }
 
@@ -437,7 +437,29 @@ class TestHarvest(HarvestFixtureBase):
         # Check gather errors
         assert len(job.gather_errors) == 1
         assert job.gather_errors[0].harvest_job_id == job.id
-        assert 'Unable to get content for URL' in job.gather_errors[0].message
+        assert_in('could not make connection', job.gather_errors[0].message)
+        assert_in('Connection refused', job.gather_errors[0].message)
+
+    def test_harvest_error_bad_status(self):
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/gemini2.1/not_there',
+            'type': u'gemini-single'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        object_ids = harvester.gather_stage(job)
+        assert object_ids is None
+
+        # Check gather errors
+        assert len(job.gather_errors) == 1
+        assert job.gather_errors[0].harvest_job_id == job.id
+        assert_in('Server responded with an error', job.gather_errors[0].message)
+        assert_in('404', job.gather_errors[0].message)
+        assert_in('File not found', job.gather_errors[0].message)
 
     def test_harvest_error_validation(self):
 

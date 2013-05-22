@@ -51,6 +51,9 @@ from ckanext.spatial.lib.coupled_resource import extract_guid, update_coupled_re
 
 log = logging.getLogger(__name__)
 
+class GetContentError(Exception):
+    pass
+
 def text_traceback():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -120,9 +123,20 @@ class SpatialHarvester(object):
         character encoding. The XML may have a declaration such as:
           <?xml version='1.0' encoding='ASCII'?>
         but often won\'t. The assumed encoding for Gemini2 is UTF8.
+
+        May raise GetContentError.
         '''
         url = url.replace(' ','%20')
-        http_response = urllib2.urlopen(url)
+        try:
+            http_response = urllib2.urlopen(url)
+        except urllib2.HTTPError, e:
+            raise GetContentError('Server responded with an error when accessing URL: %s Status: %s Reason: %r' % \
+                   (url, e.code, e.reason))
+            return None
+        except urllib2.URLError, e:
+            raise GetContentError('URL syntax error or could not make connection to the host server. URL: "%s" Error: %r' % \
+                                  (url, e.reason))
+            return None
         return http_response.read()
 
 class GeminiHarvester(SpatialHarvester):
@@ -833,9 +847,13 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
         # Get contents
         try:
             content = self._get_content(url)
-        except Exception,e:
-            self._save_gather_error('Unable to get content for URL: %s: %r' % \
-                                        (url, e),harvest_job)
+        except GetContentError, e:
+            self._save_gather_error('Unable to get document: %r' % e,
+                                    harvest_job)
+            return None
+        except Exception, e:
+            self._save_gather_error('Unable to get document from URL: %s: %r' % \
+                                    (url, e), harvest_job)
             return None
         try:
             # We need to extract the guid to pass it to the next stage
@@ -898,8 +916,12 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         # Get contents
         try:
             content = self._get_content(url)
+        except GetContentError, e:
+            self._save_gather_error('Unable to get WAF content: %r' % e,
+                                    harvest_job)
+            return None
         except Exception,e:
-            self._save_gather_error('Unable to get content for URL: %s: %r' % \
+            self._save_gather_error('Unable to get WAF content at URL: %s: %r' % \
                                         (url, e),harvest_job)
             return None
 
@@ -908,6 +930,10 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
             for url in self._extract_urls(content, url, log):
                 try:
                     content = self._get_content(url)
+                except GetContentError, e:
+                    self._save_gather_error('Unable to get WAF link: %r' % e,
+                                            harvest_job)
+                    return None
                 except Exception, e:
                     msg = 'Couldn\'t harvest WAF link: %s: %s' % (url, e)
                     self._save_gather_error(msg,harvest_job)
