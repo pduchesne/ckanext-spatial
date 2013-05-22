@@ -135,7 +135,8 @@ class MappedXmlElement(MappedXmlObject):
             value = unicode(element)
         else:
             value = self.element_tostring(element)
-        return value
+
+        return value.strip()
 
     def element_tostring(self, element):
         return etree.tostring(element, pretty_print=False)

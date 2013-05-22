@@ -325,7 +325,9 @@
                   <gco:Decimal>-8.97114288</gco:Decimal>
                 </gmd:westBoundLongitude>
                 <gmd:eastBoundLongitude>
-                  <gco:Decimal>0.205857204</gco:Decimal>
+                  <gco:Decimal>
+0.205857204
+</gco:Decimal>
                 </gmd:eastBoundLongitude>
                 <gmd:southBoundLatitude>
                   <gco:Decimal>54.529947158</gco:Decimal>
