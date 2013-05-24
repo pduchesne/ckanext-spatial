@@ -131,7 +131,9 @@ class SpatialHarvester(object):
             http_response = urllib2.urlopen(url)
         except urllib2.HTTPError, e:
             raise GetContentError('Server responded with an error when accessing URL: %s Status: %s Reason: %r' % \
-                   (url, e.code, e.reason))
+                   (url, e.code, e.msg))
+            # NB HTTPError.reason is the documented way, but that only works for
+            #    Python 2.7 and is an alias for HTTPError.msg anyway.
             return None
         except urllib2.URLError, e:
             raise GetContentError('URL syntax error or could not make connection to the host server. URL: "%s" Error: %r' % \
