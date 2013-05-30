@@ -22,6 +22,7 @@ import uuid
 import os
 import logging
 import difflib
+import traceback
 
 from lxml import etree
 from pylons import config
@@ -71,16 +72,30 @@ class SpatialHarvester(object):
     # A: HarvesterBase just provides some useful util methods. The key thing
     #    a harvester does is it implements(IHarvester).
 
-    def _is_wms(self,url):
+    @classmethod
+    def _is_wms(cls, url):
+        '''Given a URL this method returns whether it thinks it is a WMS server
+        or not. It does it by making basic WMS requests.
+        '''
+        # Here's a neat way to test this manually:
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._is_wms('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
             capabilities_url = wms.WMSCapabilitiesReader().capabilities_url(url)
             res = urllib2.urlopen(capabilities_url,None,10)
             xml = res.read()
-
-            s = wms.WebMapService(url,xml=xml)
+            try:
+                s = wms.WebMapService(url,xml=xml)
+            except AttributeError, e:
+                # e.g. http://csw.data.gov.uk/geonetwork/srv/en/csw
+                log.info('WMS check for %s failed due to GetCapabilities response not containing a required field: %s', url, traceback.format_exc())
+                return False
+            except etree.XMLSyntaxError, e:
+                # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
+                log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                return False
             return isinstance(s.contents, dict) and s.contents != {}
         except Exception, e:
-            log.error('WMS check for %s failed with exception: %s' % (url, str(e)))
+            log.exception('WMS check for %s failed with uncaught exception: %s' % (url, str(e)))
         return False
 
     def _get_validator(self):
