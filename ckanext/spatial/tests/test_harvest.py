@@ -1,5 +1,7 @@
 from datetime import datetime, date
 import lxml
+import logging
+import os
 
 from nose.tools import assert_equal, assert_in, assert_raises
 
@@ -20,6 +22,8 @@ from ckanext.spatial.model.package_extent import setup as spatial_db_setup
 from ckanext.spatial.tests.base import SpatialTestBase
 
 from xml_file_server import serve
+
+xml_directory = os.path.join(os.path.dirname(__file__), 'xml')
 
 class HarvestFixtureBase(SpatialTestBase):
 
@@ -1143,3 +1147,207 @@ class TestValidation(HarvestFixtureBase):
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd)', errors)
         assert_in('(u"Element \'{http://www.isotc211.org/2005/srv}SV_ServiceIdentification\': This element is not expected.', errors)
+
+
+log = logging.getLogger(__name__)
+
+class TestWafParsing:
+    def test_extract__simple(self):
+        content = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Index of /waf</title>
+    </head>
+    <body>
+        <h1>Index of /waf</h1>
+        <a href="wales1.xml">wales1.xml</a>
+        <a href="wales2.xml">wales2.xml</a>
+    </body>
+</html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/wales1.xml',
+                            'http://base.com/waf/wales2.xml'])
+
+    def test_extract__bad_xml(self):
+        content = '<a href="wales1.xml">wales1.xml</a></br>'
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/wales1.xml'])
+
+    def test_extract__ignore_slashes(self):
+        content = '<a href="http://base.com/waf/wales1.xml">wales1.xml</a></br>'
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, [])
+
+    def test_extract__ukho(self):
+        content = '''
+<html>
+    <head>
+        <title>UKHO Metadata WAF</title>
+    </head>
+    <body>
+        <a href="4ce68487-185a-309a-82ac-53db2cd8b503.xml">4ce68487-185a-309a-82ac-53db2cd8b503.xml</a><br>
+        <a href="6c63002b-182d-3254-8ccd-31d2898fb96c.xml">6c63002b-182d-3254-8ccd-31d2898fb96c.xml</a><br>
+    </body>
+</html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/4ce68487-185a-309a-82ac-53db2cd8b503.xml',
+                            'http://base.com/waf/6c63002b-182d-3254-8ccd-31d2898fb96c.xml'])
+
+    def test_extract__british_waterways(self):
+        content = '''
+<html>
+<head><title>INSPIRE metadata - British Waterways</title></head>
+<body>
+<h2>INSPIRE metadata - British Waterways</h2><br><br>
+<a href="Wharves.xml">Wharves.xml</a><br>
+<a href="Outfall%5FDischarge%5FPoints.xml">Outfall Discharge Points.xml</a><br>
+
+</body>
+</html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/Wharves.xml',
+                            'http://base.com/waf/Outfall%5FDischarge%5FPoints.xml'])
+
+    def test_extract__english_heritage(self):
+        content = '''
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>
+
+</title></head>
+<body>
+    <form name="form1" method="post" action="default.aspx" id="form1">
+<div>
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUIOTEyND=" />
+</div>
+
+    <div>
+        <a href="EH_Battlefields.xml">EH_Battlefields.xml</a><br />
+<a href="EH_BuildingPreservationNotice.xml">EH_BuildingPreservationNotice.xml</a><br />
+
+    </div>
+    </form>
+</body>
+</html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/EH_Battlefields.xml',
+                            'http://base.com/waf/EH_BuildingPreservationNotice.xml'])
+
+    def test_extract__environment_agency(self):
+        content = '''
+<html>
+<head><title>INSPIRE metadata - Environment Agency</title></head>
+<body>
+<h2>INSPIRE metadata - Environment Agency</h2><br><br>
+<a href="Administrative+Boundaries+-+Public+Face+Areas.xml">Administrative Boundaries - Public Face Areas .xml</a><br>
+<a href="Administrative+Boundaries+-+Public+Face+Regions.xml">Administrative Boundaries - Public Face Regions.xml</a><br>
+</body>
+</html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/Administrative+Boundaries+-+Public+Face+Areas.xml',
+                            'http://base.com/waf/Administrative+Boundaries+-+Public+Face+Regions.xml'])
+
+    def test_extract__natural_england(self):
+        content = '''
+<html>
+<head><title>INSPIRE metadata - Natural England</title></head>
+<body>
+<h2>INSPIRE metadata - Natural England</h2><br><br>
+<a href="Sites+of+Special+Scientific+Interest+England+Dataset.xml"> Sites of Special Scientific Interest England Dataset.xml</a><br>
+
+
+</body>
+</html>
+
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/Sites+of+Special+Scientific+Interest+England+Dataset.xml'])
+
+    def test_extract__os(self):
+        content = open(os.path.join(xml_directory, 'gemini2.1-waf/os.xml'),
+                       'rb').read()
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/10kBlackandWhiteRaster.xml',
+                            'http://base.com/waf/10kcolRas.xml',
+                            'http://base.com/waf/250colRas.xml',
+                            'http://base.com/waf/25kColRas.xml',
+                            'http://base.com/waf/50colRas.xml',
+                            'http://base.com/waf/50kGaz.xml',
+                            'http://base.com/waf/AddressBase.xml',
+                            'http://base.com/waf/AddressBasePlus.xml',
+                            'http://base.com/waf/AddressBasePremium.xml',
+                            'http://base.com/waf/AddressLayer.xml',
+                            'http://base.com/waf/AddressLayer2.xml',
+                            'http://base.com/waf/BoundaryLine.xml',
+                            'http://base.com/waf/CodePoint.xml',
+                            'http://base.com/waf/CodePointOpen.xml',
+                            'http://base.com/waf/CodePointwithPolygons.xml',
+                            'http://base.com/waf/Imagery.xml',
+                            'http://base.com/waf/ITN.xml',
+                            'http://base.com/waf/Meridian2.xml',
+                            'http://base.com/waf/OSLocator.xml',
+                            'http://base.com/waf/OSMMSitesLayer.xml',
+                            'http://base.com/waf/OSSVras.xml',
+                            'http://base.com/waf/PanoramaContours.xml',
+                            'http://base.com/waf/PanoramaDTM.xml',
+                            'http://base.com/waf/ProfileContours.xml',
+                            'http://base.com/waf/ProfileDTM.xml',
+                            'http://base.com/waf/Strategi.xml',
+                            'http://base.com/waf/Topo.xml',
+                            'http://base.com/waf/VMD.xml',
+                            'http://base.com/waf/VML.xml',
+                            'http://base.com/waf/OSOnDemandService.xml',
+                            'http://base.com/waf/UKLPCPS.xml',
+                            'http://base.com/waf/OrdnanceSurveyAtomFeed.xml'])
+
+    def test_extract__edinburgh(self):
+        server = 'Apache'
+        content = '''
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+ <head>
+  <title>Index of /datagov/harvest</title>
+ </head>
+ <body>
+<h1>Index of /datagov/harvest</h1>
+<pre>      <a href="?C=N;O=A">Name</a>                                     <a href="?C=M;O=A">Last modified</a>      <a href="?C=S;O=A">Size</a>  <a href="?C=D;O=A">Description</a><hr>      <a href="ffc4027c-bb5e-406a-90a6-0386f2729671.xml">ffc4027c-bb5e-406a-90a6-0386f2729671.xml</a> 24-Apr-2013 15:24   25K  
+      <a href="f247bbe2-945e-4d5c-8dfe-5480272f81c5.xml">f247bbe2-945e-4d5c-8dfe-5480272f81c5.xml</a> 24-Apr-2013 15:24   28K  
+<hr></pre>
+</body></html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/ffc4027c-bb5e-406a-90a6-0386f2729671.xml',
+                            'http://base.com/waf/f247bbe2-945e-4d5c-8dfe-5480272f81c5.xml'])
+
+    def test_extract__welsh_gov(self):
+        content = '''
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+ <head>
+  <title>Index of /gemini</title>
+ </head>
+ <body>
+<h1>Index of /gemini</h1>
+<table><tr><th><img src="/icons/blank.gif" alt="[ICO]" /></th><th>Name</th><th>Last modified</th><th>Size</th><th>Description</th></tr><tr><th colspan="5"><hr /></th></tr>
+<tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]" /></td><td><a href="/">Parent Directory</a></td><td>&nbsp;</td><td align="right">  - </td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]" /></td><td><a href="G298736.xml">G298736.xml</a></td><td align="right">15-May-2013 06:58  </td><td align="right"> 22K</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]" /></td><td><a href="G298740.xml">G298740.xml</a></td><td align="right">15-May-2013 06:59  </td><td align="right"> 21K</td></tr>
+<tr><th colspan="5"><hr /></th></tr>
+</table>
+<address>Apache/2.2.3 (Oracle) Server at partnerdataexport.ccw.gov.uk Port 80</address>
+</body></html>
+'''
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        assert_equal(urls, ['http://base.com/waf/G298736.xml',
+                            'http://base.com/waf/G298740.xml'])
