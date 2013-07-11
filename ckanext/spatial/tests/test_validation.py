@@ -135,5 +135,12 @@ class TestValidation:
         if isinstance(details, tuple):
             details = details[1]
         assert_in("srv:serviceType/*[1] = 'discovery'", details)
-        assert_in("/*[local-name()='MD_Metadata'", details)
+        assert_in("/gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification", details)
         assert_in("Service type shall be one of 'discovery'", details)
+
+    def test_schematron_error_location_simplification(self):
+        assert_equal(validation.SchematronValidator.simplify_error_location("*[local-name()='MD_Metadata' and namespace-uri()='http://www.isotc211.org/2005/gmd']"),
+                     'gmd:MD_Metadata')
+
+        assert_equal(validation.SchematronValidator.simplify_error_location("/*[local-name()='MD_Metadata' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='identificationInfo' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='MD_DataIdentification' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='extent' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='EX_Extent' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='geographicElement' and namespace-uri()='http://www.isotc211.org/2005/gmd'][1]/*[local-name()='EX_GeographicDescription' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='geographicIdentifier' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='MD_Identifier' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='authority' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='CI_Citation' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='date' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='CI_Date' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='dateType' and namespace-uri()='http://www.isotc211.org/2005/gmd']"),
+                     '/gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement[1]/gmd:EX_GeographicDescription/gmd:geographicIdentifier/gmd:MD_Identifier/gmd:authority/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:dateType')

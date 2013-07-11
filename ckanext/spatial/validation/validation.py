@@ -1,4 +1,5 @@
 import os
+import re
 from pkg_resources import resource_stream, resource_filename
 from ckanext.spatial.model import GeminiDocument
 
@@ -145,10 +146,25 @@ class SchematronValidator(BaseValidator):
         '''
         assert_ = failed_assert_element.get('test')
         location = failed_assert_element.get('location')
+        location = cls.simplify_error_location(location)
         message_element = failed_assert_element.find("{http://purl.oclc.org/dsdl/svrl}text")
         message = message_element.text.strip()
         failed_assert_element
         return message, 'Error Message: %s\nError Location: %s\nError Assert: %s' % (message, location, assert_)
+
+    @classmethod
+    def simplify_error_location(cls, location):
+        '''Given the Schematron Error Location string, make it more readable
+        by collapsing the namespaces.
+
+        e.g.
+        "*[local-name()='MD_Metadata' and namespace-uri()='http://www.isotc211.org/2005/gmd']"
+        becomes:
+        "gmd:MD_Metadata"
+        '''
+        if not hasattr(cls, 'folder_re'):
+            folder_re = re.compile(r"\*\[local-name\(\)='(.+?)' and namespace-uri\(\)='.*?/([^/']+)'\]")
+        return folder_re.sub(r'\2:\1', location)
 
     @classmethod
     def schematron(cls, schema):
