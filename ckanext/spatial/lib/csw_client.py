@@ -91,6 +91,9 @@ class CswService(OwsService):
     def getidentifiers(self, qtype=None, typenames="csw:Record", esn="brief",
                        keywords=[], limit=None, page=10, outputschema="gmd",
                        **kw):
+        '''
+        May propagate exceptions like URLError: <urlopen error timed out>
+        '''
         from owslib.csw import namespaces
         csw = self._ows(**kw)
         kwa = {
@@ -105,6 +108,7 @@ class CswService(OwsService):
         i = 0
         while True:
             log.info('Making CSW request: getrecords %r', kwa)
+            # this might raise e.g. URLError: <urlopen error timed out>
             csw.getrecords(**kwa)
             if csw.exceptionreport:
                 err = 'Error getting identifiers: %r' % \

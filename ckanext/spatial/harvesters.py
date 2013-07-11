@@ -758,6 +758,8 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
         used_identifiers = []
         ids = []
         try:
+            # csw.getidentifiers may propagate exceptions like
+            # URLError: <urlopen error timed out>
             for identifier in self.csw.getidentifiers(page=10):
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
@@ -785,6 +787,12 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
                         raise
                     continue
 
+        except urllib2.URLError, e:
+            log.info('Exception: %s' % text_traceback())
+            self._save_gather_error('URL Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
+            if debug_exception_mode:
+                raise
+            return None
         except Exception, e:
             log.error('Exception: %s' % text_traceback())
             self._save_gather_error('Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
