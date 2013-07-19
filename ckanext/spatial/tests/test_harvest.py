@@ -13,7 +13,7 @@ from ckan.logic.schema import default_update_package_schema
 from ckan.logic import get_action
 from ckanext.harvest.model import (setup as harvest_model_setup,
                                    HarvestSource, HarvestJob, HarvestObject,
-                                   HarvestCoupledResource)
+                                   HarvestCoupledResource, HarvestGatherError)
 from ckanext.spatial.validation import Validators, SchematronValidator
 from ckanext.spatial.harvesters import (GeminiCswHarvester, GeminiDocHarvester,
                                         GeminiWafHarvester, SpatialHarvester,
@@ -867,6 +867,12 @@ class TestGatherMethods(HarvestFixtureBase):
     def teardown(self):
         model.repo.rebuild_db()
 
+    def get_gather_error(self):
+        errs = [err.message for err in self.harvester.harvest_job.gather_errors]
+        if len(errs) == 1:
+            return errs[0]
+        return errs or None
+
     def test_get_gemini_string_and_guid(self):
         res = self.harvester.get_gemini_string_and_guid(BASIC_GEMINI, url=None)
         assert_equal(res, (BASIC_GEMINI, GUID))
@@ -882,6 +888,11 @@ class TestGatherMethods(HarvestFixtureBase):
     def test_get_gemini_string_and_guid__empty(self):
         content = ''
         assert_raises(lxml.etree.XMLSyntaxError, self.harvester.get_gemini_string_and_guid, content)
+
+    def test_get_gemini_string_and_guid__wrong_element(self):
+        content = '<notMetadata/>' # i.e. not metadata
+        res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
+        assert_equal(self.get_gather_error(), 'Content is not a valid Gemini document without the gmd:MD_Metadata element (TESTURL)')
 
 class TestImportStageTools:
     def test_licence_url_normal(self):

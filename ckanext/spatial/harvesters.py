@@ -43,7 +43,7 @@ from ckan.lib.navl.validators import not_empty
 
 from ckanext.harvest.interfaces import IHarvester
 from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
-                                    HarvestObjectError, HarvestGatherError
+                                    HarvestObjectError
 
 from ckanext.spatial.model import GeminiDocument
 from ckanext.spatial.lib.csw_client import CswService
@@ -713,7 +713,8 @@ class GeminiHarvester(SpatialHarvester):
             gemini_xml = xml.find(metadata_tag)
 
         if gemini_xml is None:
-            self._save_gather_error('Content is not a valid Gemini document without the gmd:MD_Metadata element', self.harvest_job)
+            self._save_gather_error('Content is not a valid Gemini document without the gmd:MD_Metadata element (%s)' % url, self.harvest_job)
+            return None, None
 
         gemini_string = etree.tostring(gemini_xml)
         gemini_document = GeminiDocument(gemini_string)
