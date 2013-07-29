@@ -691,8 +691,8 @@ class GeminiHarvester(SpatialHarvester):
         '''From a string buffer containing Gemini XML, return the tree
         under gmd:MD_Metadata and the GUID for it. 
 
-        If it cannot parse the XML it will raise lxml.etree.XMLSyntaxError.
-        If it cannot find the GUID element, then gemini_guid will be ''.
+        If it cannot parse the XML or find the GUID element, then gemini_guid
+        will be ''.
 
         :param content: string containing Gemini XML (character encoded, not unicode)
         :param url: string giving info about the location of the XML to be
@@ -703,7 +703,11 @@ class GeminiHarvester(SpatialHarvester):
             gemini_string = str(gemini_string)
         except UnicodeEncodeError:
             pass
-        xml = etree.fromstring(gemini_string)
+        try:
+            xml = etree.fromstring(gemini_string)
+        except etree.XMLSyntaxError, e:
+            self._save_gather_error('Content is not a valid XML document (%s): %s' % (url, e), self.harvest_job)
+            return None, None
 
         # The validator and GeminiDocument don\'t like the container
         metadata_tag = '{http://www.isotc211.org/2005/gmd}MD_Metadata'

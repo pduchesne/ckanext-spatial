@@ -894,6 +894,14 @@ class TestGatherMethods(HarvestFixtureBase):
         res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
         assert_equal(self.get_gather_error(), 'Content is not a valid Gemini document without the gmd:MD_Metadata element (TESTURL)')
 
+    def test_get_gemini_string_and_guid__bad_char_encoding(self):
+        # Should be "&amp;" rather than "&"
+        content = '''<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
+    <gmd:URL>http://www.geostore.com/OGC/OGCInterface?INTERFACE=ENVIRONMENT&UID=UDATAGOV2011&PASSWORD=datagov2011&LC=3ffff800000000000&</gmd:URL>
+</gmd:MD_Metadata>'''
+        res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
+        assert_equal(self.get_gather_error(), 'Content is not a valid XML document (TESTURL): EntityRef: expecting \';\', line 2, column 80')
+
 class TestImportStageTools:
     def test_licence_url_normal(self):
         assert_equal(GeminiHarvester._extract_licence_urls(
