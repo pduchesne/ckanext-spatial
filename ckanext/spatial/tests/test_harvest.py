@@ -3,7 +3,7 @@ import lxml
 import logging
 import os
 
-from nose.tools import assert_equal, assert_in, assert_raises
+from nose.tools import assert_equal, assert_in
 
 from ckan import plugins
 from ckan.lib.base import config
@@ -420,9 +420,10 @@ class TestHarvest(HarvestFixtureBase):
             assert object_ids is None
 
         # Check gather errors
-        assert len(job.gather_errors) == 1
+        assert_equal(len(job.gather_errors), 2)
         assert job.gather_errors[0].harvest_job_id == job.id
-        assert 'Error parsing the document' in job.gather_errors[0].message
+        assert job.gather_errors[1].harvest_job_id == job.id
+        assert_equal(job.gather_errors[0].message, 'Content is not a valid XML document (http://127.0.0.1:8999/gemini2.1/error_bad_xml.xml): Premature end of data in tag MD_Metadata line 2, line 16, column 1')
 
     def test_harvest_error_connection(self):
         # Create source
@@ -883,11 +884,15 @@ class TestGatherMethods(HarvestFixtureBase):
 
     def test_get_gemini_string_and_guid__non_parsing(self):
         content = '<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">' # no closing tag
-        assert_raises(lxml.etree.XMLSyntaxError, self.harvester.get_gemini_string_and_guid, content)
+        res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
+        assert_equal(res, (None, None))
+        assert_equal(self.get_gather_error(), 'Content is not a valid XML document (TESTURL): Premature end of data in tag MD_Metadata line 1, line 1, column 38')
 
     def test_get_gemini_string_and_guid__empty(self):
         content = ''
-        assert_raises(lxml.etree.XMLSyntaxError, self.harvester.get_gemini_string_and_guid, content)
+        res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
+        assert_equal(res, (None, None))
+        assert_equal(self.get_gather_error(), 'Content is blank/empty (TESTURL)')
 
     def test_get_gemini_string_and_guid__wrong_element(self):
         content = '<notMetadata/>' # i.e. not metadata

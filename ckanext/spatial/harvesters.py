@@ -703,6 +703,10 @@ class GeminiHarvester(SpatialHarvester):
             gemini_string = str(gemini_string)
         except UnicodeEncodeError:
             pass
+        if not gemini_string.strip():
+            self._save_gather_error('Content is blank/empty (%s)' % url, self.harvest_job)
+            return None, None
+
         try:
             xml = etree.fromstring(gemini_string)
         except etree.XMLSyntaxError, e:
@@ -827,7 +831,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
         try:
             record = self.csw.getrecordbyid([identifier])
         except Exception, e:
-            self._save_object_error('Error getting the CSW record with GUID %s' % identifier, harvest_object)
+            self._save_object_error('Error getting the CSW record with GUID %s: %s' % (identifier, e), harvest_object)
             return False
 
         if record is None:
