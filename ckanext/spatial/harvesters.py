@@ -81,7 +81,12 @@ class SpatialHarvester(object):
         # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._is_wms('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
             capabilities_url = wms.WMSCapabilitiesReader().capabilities_url(url)
-            res = urllib2.urlopen(capabilities_url,None,10)
+            try:
+                res = urllib2.urlopen(capabilities_url, None, 10)
+            except urllib2.HTTPError, e:
+                # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
+                log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
+                return False
             xml = res.read()
             try:
                 s = wms.WebMapService(url,xml=xml)
