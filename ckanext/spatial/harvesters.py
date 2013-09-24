@@ -1015,7 +1015,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         if len(ids) > 0:
             return ids
         else:
-            self._save_gather_error('Couldn\'t find any links to metadata files. (N.B. A common error is for the WAF to contain links that containing path information. Links are discarded if they contain slashes. For example, it should be href="rivers.xml" rather than href="/metadata/rivers.xml".)',
+            self._save_gather_error('Couldn\'t find any links to metadata files. (N.B. A common error is for the WAF to contain links that include path information. Links are discarded if they contain slashes. For example, it should be href="rivers.xml" rather than href="/metadata/rivers.xml".)',
                                      harvest_job)
             return None
 
