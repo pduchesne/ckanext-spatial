@@ -13,7 +13,7 @@ TODO: Harvesters for generic INSPIRE CSW servers
 import cgitb
 import warnings
 import urllib2
-from urlparse import urlparse
+from urlparse import urlparse, urlunparse
 from datetime import datetime
 from string import Template
 from numbers import Number
@@ -137,10 +137,12 @@ class SpatialHarvester(object):
 
     def _get_content(self, url):
         '''
-        Requests the URL and returns the response.
+        Requests the URL and returns the response body and the URL (it may 
+        change due to 301 redirection).
 
-        It returns a str string i.e. not unicode. The content will probably contain
-        character encoding. The XML may have a declaration such as:
+        The returned content is a str string i.e. not unicode. The content
+        will probably contain character encoding. The XML may have a 
+        declaration such as:
           <?xml version='1.0' encoding='ASCII'?>
         but often won\'t. The assumed encoding for Gemini2 is UTF8.
 
@@ -159,7 +161,7 @@ class SpatialHarvester(object):
             raise GetContentError('URL syntax error or could not make connection to the host server. URL: "%s" Error: %r' % \
                                   (url, e.reason))
             return None
-        return http_response.read()
+        return (http_response.read(), http_response.geturl())
 
 class GeminiHarvester(SpatialHarvester):
     '''Base class for spatial harvesting GEMINI2 documents for the UK Location
@@ -885,7 +887,7 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
 
         # Get contents
         try:
-            content = self._get_content(url)
+            content, url = self._get_content(url)
         except GetContentError, e:
             self._save_gather_error('Unable to get document: %r' % e,
                                     harvest_job)
@@ -956,7 +958,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
 
         # Get contents
         try:
-            content = self._get_content(url)
+            content, url = self._get_content(url)
         except GetContentError, e:
             self._save_gather_error('Unable to get WAF content: %r' % e,
                                     harvest_job)
@@ -970,7 +972,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         try:
             for url in self._extract_urls(content, url, log):
                 try:
-                    content = self._get_content(url)
+                    content, url = self._get_content(url)
                 except GetContentError, e:
                     self._save_gather_error('Unable to get WAF link: %r' % e,
                                             harvest_job)
@@ -1022,7 +1024,28 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         return True
 
     @classmethod
-    def _extract_urls(cls, content, base_url, log):
+    def _get_base_url(cls, index_url):
+        '''Given the URL of the WAF index, return the base URL for its
+        relative links
+
+        scheme://netloc/path1/path2;parameters?query#fragment
+         ->
+        scheme://netloc/path1/
+'''
+        parts = urlparse(index_url)
+        # Index URL path may have a page name, like index.html, so
+        # get rid of anything after last slash
+        path = parts.path
+        last_slash = path.rfind('/')
+        if last_slash is not None:
+            path = path[:last_slash]
+        base_url = urlunparse((parts[0], parts[1], path, '', '', ''))
+        base_url += '/'
+        log.debug('WAF base URL: %s', base_url)
+        return base_url
+
+    @classmethod
+    def _extract_urls(cls, content, index_url, log):
         '''
         Get the URLs out of a WAF index page
         '''
@@ -1052,12 +1075,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
                 continue
             log.debug('WAF contains file: %s', url)
             urls.append(url)
-        base_url = base_url.rstrip('/').split('/')
-        if 'index' in base_url[-1]:
-            base_url.pop()
-        base_url = '/'.join(base_url)
-        base_url += '/'
-        log.debug('WAF base URL: %s', base_url)
+        base_url = cls._get_base_url(index_url)
         return [base_url + i for i in urls]
 
 

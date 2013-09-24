@@ -1175,7 +1175,74 @@ class TestValidation(HarvestFixtureBase):
 
 log = logging.getLogger(__name__)
 
-class TestWafParsing:
+class TestWafBaseUrl:
+    def check(self, index_url, expected_base_url):
+        assert_equal(GeminiWafHarvester._get_base_url(index_url),
+                     expected_base_url)
+
+    # NB http://example.com/dir usually gets 301 redirected to .../dir/
+
+    def test_dir(self):
+        self.check('http://example.com/dir/', 'http://example.com/dir/')
+
+    def test_index(self):
+        self.check('http://example.com/dir/index.html', 'http://example.com/dir/')
+
+    def test_root(self):
+        self.check('http://example.com/', 'http://example.com/')
+
+    def test_no_path(self):
+        self.check('http://example.com', 'http://example.com/')
+
+    def test_canonical(self):
+        self.check('scheme://netloc/path1/path2;parameters?query#fragment',
+                   'scheme://netloc/path1/')
+
+    def test_examples(self):
+        # from ckanext.harvest.model import HarvestSource
+        # [s.url for s in model.Session.query(HarvestSource).filter_by(type='gemini-waf').filter_by(active=True)]
+        self.check('http://s3-eu-west-1.amazonaws.com/inspire-ne/index.html',
+                   'http://s3-eu-west-1.amazonaws.com/inspire-ne/')
+        self.check('http://www.ukho.gov.uk/inspire/metadata/index.html',
+                   'http://www.ukho.gov.uk/inspire/metadata/')
+        # http://www.gogeo.ac.uk/datagov/harvest 301 redirects to:
+        self.check('http://www.gogeo.ac.uk/datagov/harvest/',
+                   'http://www.gogeo.ac.uk/datagov/harvest/')
+        # http://inspire.misoportal.com/metadata/files/harrogate 301:
+        self.check('http://inspire.misoportal.com/metadata/files/harrogate/',
+                   'http://inspire.misoportal.com/metadata/files/harrogate/')
+        # http://services.english-heritage.org.uk/EnglishHeritageINSPIREDiscovery redirects to:
+        self.check('http://services.english-heritage.org.uk/EnglishHeritageINSPIREDiscovery/',
+                'http://services.english-heritage.org.uk/EnglishHeritageINSPIREDiscovery/'),
+        self.check('http://services.english-heritage.org.uk/englishheritageINSPIREdiscovery/EH_INSPIREProtectedSites.xml',
+                   'http://services.english-heritage.org.uk/englishheritageINSPIREdiscovery/')
+        self.check('http://d291tfzo9i0ude.cloudfront.net',
+                'http://d291tfzo9i0ude.cloudfront.net/')
+        # http://www.ordnancesurvey.co.uk/oswebsite/xml/products redirects:
+        self.check('http://www.ordnancesurvey.co.uk/xml/products/',
+                   'http://www.ordnancesurvey.co.uk/xml/products/')
+        self.check('http://partnerdataexport.ccw.gov.uk/gemini/',
+                   'http://partnerdataexport.ccw.gov.uk/gemini/')
+        self.check('http://dcsu059g9fk65.cloudfront.net',
+                   'http://dcsu059g9fk65.cloudfront.net/')
+        self.check('http://www.rotherham.nhs.uk/foi/',
+                   'http://www.rotherham.nhs.uk/foi/')
+        self.check('http://d1opzmrrdjgef4.cloudfront.net',
+                   'http://d1opzmrrdjgef4.cloudfront.net/')
+        # http://inspire.misoportal.com/metadata/files/tamworth redirects:
+        self.check('http://inspire.misoportal.com/metadata/files/tamworth/',
+                   'http://inspire.misoportal.com/metadata/files/tamworth/')
+        # http://planning.northyorkmoors.org.uk/maps/xml redirects:
+        self.check('http://planning.northyorkmoors.org.uk/maps/xml/',
+                   'http://planning.northyorkmoors.org.uk/maps/xml/')
+        self.check('https://s3-eu-west-1.amazonaws.com/inspire-mmo/index.html',
+                   'https://s3-eu-west-1.amazonaws.com/inspire-mmo/')
+        self.check('http://inspire.misoportal.com/metadata/files/westminster/',
+                   'http://inspire.misoportal.com/metadata/files/westminster/')
+        self.check('http://inspire.misoportal.com/metadata/files/wychavon/',
+                   'http://inspire.misoportal.com/metadata/files/wychavon/')
+
+class TestWafExtract:
     def test_extract__simple(self):
         content = '''
 <!DOCTYPE html>
@@ -1190,20 +1257,21 @@ class TestWafParsing:
     </body>
 </html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/wales1.xml',
                             'http://base.com/waf/wales2.xml'])
 
     def test_extract__bad_xml(self):
         content = '<a href="wales1.xml">wales1.xml</a></br>'
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/wales1.xml'])
 
     def test_extract__ignore_slashes(self):
         content = '<a href="http://base.com/waf/wales1.xml">wales1.xml</a></br>'
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, [])
 
+class TestWafExtractExamples:
     def test_extract__ukho(self):
         content = '''
 <html>
@@ -1216,7 +1284,7 @@ class TestWafParsing:
     </body>
 </html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/4ce68487-185a-309a-82ac-53db2cd8b503.xml',
                             'http://base.com/waf/6c63002b-182d-3254-8ccd-31d2898fb96c.xml'])
 
@@ -1232,7 +1300,7 @@ class TestWafParsing:
 </body>
 </html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/Wharves.xml',
                             'http://base.com/waf/Outfall%5FDischarge%5FPoints.xml'])
 
@@ -1262,7 +1330,7 @@ class TestWafParsing:
 </body>
 </html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/EH_Battlefields.xml',
                             'http://base.com/waf/EH_BuildingPreservationNotice.xml'])
 
@@ -1277,7 +1345,7 @@ class TestWafParsing:
 </body>
 </html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/Administrative+Boundaries+-+Public+Face+Areas.xml',
                             'http://base.com/waf/Administrative+Boundaries+-+Public+Face+Regions.xml'])
 
@@ -1294,13 +1362,13 @@ class TestWafParsing:
 </html>
 
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/Sites+of+Special+Scientific+Interest+England+Dataset.xml'])
 
     def test_extract__os(self):
         content = open(os.path.join(xml_directory, 'gemini2.1-waf/os.xml'),
                        'rb').read()
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/10kBlackandWhiteRaster.xml',
                             'http://base.com/waf/10kcolRas.xml',
                             'http://base.com/waf/250colRas.xml',
@@ -1349,7 +1417,7 @@ class TestWafParsing:
 <hr></pre>
 </body></html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/ffc4027c-bb5e-406a-90a6-0386f2729671.xml',
                             'http://base.com/waf/f247bbe2-945e-4d5c-8dfe-5480272f81c5.xml'])
 
@@ -1372,6 +1440,6 @@ class TestWafParsing:
 <address>Apache/2.2.3 (Oracle) Server at partnerdataexport.ccw.gov.uk Port 80</address>
 </body></html>
 '''
-        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf', log)
+        urls = GeminiWafHarvester._extract_urls(content, 'http://base.com/waf/', log)
         assert_equal(urls, ['http://base.com/waf/G298736.xml',
                             'http://base.com/waf/G298740.xml'])
