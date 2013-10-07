@@ -407,7 +407,7 @@ class GeminiHarvester(SpatialHarvester):
         }
 
         if self.obj.source.publisher_id:
-            package_dict['groups'] = [{'id':self.obj.source.publisher_id}]
+            package_dict['owner_org'] = self.obj.source.publisher_id
 
 
         if reactivate_package:
