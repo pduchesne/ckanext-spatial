@@ -65,13 +65,19 @@ class CswService(OwsService):
     Perform various operations on a CSW service
     """
     from owslib.csw import CatalogueServiceWeb as _Implementation
+    from owslib.fes import PropertyIsEqualTo 
     def getrecords(self, qtype=None, keywords=[],
                    typenames="csw:Record", esn="brief",
                    skip=0, count=10, outputschema="gmd", **kw):
         from owslib.csw import namespaces
+        constraints = []
         csw = self._ows(**kw)
+
+        if qtype is not None:
+           constraints.append(PropertyIsEqualTo("dc:type", qtype))
+
         kwa = {
-            "qtype": qtype,
+            "constraints": constraints,
             "keywords": keywords,
             "typenames": typenames,
             "esn": esn,
@@ -79,8 +85,8 @@ class CswService(OwsService):
             "maxrecords": count,
             "outputschema": namespaces[outputschema],
             }
-        log.info('Making CSW request: getrecords %r', kwa)
-        csw.getrecords(**kwa)
+        log.info('Making CSW request: getrecords2 %r', kwa)
+        csw.getrecords2(**kwa)
         if csw.exceptionreport:
             err = 'Error getting records: %r' % \
                   csw.exceptionreport.exceptions
@@ -90,42 +96,60 @@ class CswService(OwsService):
 
     def getidentifiers(self, qtype=None, typenames="csw:Record", esn="brief",
                        keywords=[], limit=None, page=10, outputschema="gmd",
-                       **kw):
+                       startposition=0, **kw):
         '''
         May propagate exceptions like URLError: <urlopen error timed out>
         '''
         from owslib.csw import namespaces
+        constraints = []
         csw = self._ows(**kw)
+
+        if qtype is not None:
+           constraints.append(PropertyIsEqualTo("dc:type", qtype))
+
         kwa = {
-            "qtype": qtype,
+            "constraints": constraints,
             "keywords": keywords,
             "typenames": typenames,
             "esn": esn,
-            "startposition": 0,
+            "startposition": startposition,
             "maxrecords": page,
             "outputschema": namespaces[outputschema],
             }
         i = 0
+        matches = 0
         while True:
-            log.info('Making CSW request: getrecords %r', kwa)
+            log.info('Making CSW request: getrecords2 %r', kwa)
+            
             # this might raise e.g. URLError: <urlopen error timed out>
-            csw.getrecords(**kwa)
+            csw.getrecords2(**kwa)
             if csw.exceptionreport:
                 err = 'Error getting identifiers: %r' % \
                       csw.exceptionreport.exceptions
                 #log.error(err)
                 raise CswError(err)
+            
+            if matches == 0:
+                matches = csw.results['matches']
+                    
             identifiers = csw.records.keys()
             if limit is not None:
                 identifiers = identifiers[:(limit-startposition)]
             for ident in identifiers:
                 yield ident
+
             if len(identifiers) < page:
                 break
+
             i += len(identifiers)
             if limit is not None and i > limit:
                 break
-            kwa["startposition"] += page
+
+            startposition += page
+            if startposition >= (matches + 1):
+                break
+
+            kwa["startposition"] = startposition
             
     def getrecordbyid(self, ids=[], esn="full", outputschema="gmd", **kw):
         from owslib.csw import namespaces
