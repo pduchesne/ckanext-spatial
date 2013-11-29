@@ -214,6 +214,10 @@ The equivalent example to the one above for asking the cabailities is::
 
  $ cswinfo csw getcapabilities http://127.0.0.1:5000/csw
 
+More examples:
+ $ cswinfo csw getidentifiers https://geoportal.statistics.gov.uk/geoportal/csw/discovery
+ $ cswinfo csw getrecordbyid https://geoportal.statistics.gov.uk/geoportal/csw/discovery 926a6543-df3f-4b57-9b0f-96c6204d1ff4
+
 OWSLib is the library used to actually perform the queries.
 
 Validator
