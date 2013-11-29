@@ -880,6 +880,15 @@ class TestHarvest(HarvestFixtureBase):
         source_dict = get_action('harvest_source_show')(self.context,{'id':source.id})
         assert len(source_dict['status']['packages']) == 1
 
+    def test_harvest_bad_extent(self):
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/gemini2.1/service1_bad_extent.xml',
+            'type': u'gemini-single',
+        }
+        source, job = self._create_source_and_job(source_fixture)
+        obj = self._run_job_for_single_document(job, expect_obj_errors=True)
+        assert_in('bounding box has zero area', obj.errors[0].message)
+
 BASIC_GEMINI = '''<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
   <gmd:fileIdentifier xmlns:gml="http://www.opengis.net/gml">
     <gco:CharacterString>e269743a-cfda-4632-a939-0c8416ae801e</gco:CharacterString>

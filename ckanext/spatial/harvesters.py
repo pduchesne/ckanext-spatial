@@ -267,6 +267,12 @@ class GeminiHarvester(SpatialHarvester):
         gemini_values = gemini_document.read_values()
         gemini_guid = gemini_values['guid']
 
+        # Check that the extent does not have zero area - that causes a divide
+        # by zero error in map searches. (DGU#782)
+        if gemini_values['bbox-north-lat'] == gemini_values['bbox-south-lat'] \
+          or gemini_values['bbox-west-long'] == gemini_values['bbox-east-long']:
+            raise Exception('The Extent\'s geographic bounding box has zero area for GUID %s' % gemini_guid)
+
         # Save the metadata reference date in the Harvest Object
         try:
             metadata_modified_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%d')
