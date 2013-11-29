@@ -312,7 +312,7 @@ class GeminiHarvester(SpatialHarvester):
                     # New publisher and title - this looks like this an error
                     # with the metadata - the GUID has been copied onto a
                     # completely different dataset.
-                    raise Exception('The document with GUID %s matches a record from another publisher with a different title (%s). GUIDs must be globally unique.' % (gemini_guid, last_harvested_object.package.name))
+                    raise Exception('The document with GUID %s has changed its publisher, but the metadata date in the newly harvested copy (%s) is earlier than before (%s).' % (gemini_guid, self.obj.metadata_modified_date, last_harvested_object.metadata_modified_date))
                 else:
                     # New publisher, same title - looks like the dataset is
                     # being transferred to a new publisher - this is
