@@ -7,6 +7,7 @@ from nose.tools import assert_equal, assert_in
 
 from ckan import plugins
 from ckan.lib.base import config
+from ckan.lib.create_test_data import CreateTestData
 from ckan import model
 from ckan.model import Session,Package
 from ckan.logic.schema import default_update_package_schema
@@ -24,6 +25,7 @@ from ckanext.spatial.tests.base import SpatialTestBase
 from xml_file_server import serve
 
 xml_directory = os.path.join(os.path.dirname(__file__), 'xml')
+is_publisher_profile = True #config.get('ckan.harvest.auth.profile') == 'publisher'
 
 class HarvestFixtureBase(SpatialTestBase):
 
@@ -43,7 +45,7 @@ class HarvestFixtureBase(SpatialTestBase):
     def setup(self):
         # Add sysadmin user
         harvest_user = model.User(name=u'harvest', password=u'test')
-        model.add_user_to_role(harvest_user, model.Role.ADMIN, model.System())
+        harvest_user.sysadmin = True
         Session.add(harvest_user)
         Session.commit()
 
@@ -54,23 +56,27 @@ class HarvestFixtureBase(SpatialTestBase):
                        'schema':package_schema,
                        'api_version': '2'}
 
-        if config.get('ckan.harvest.auth.profile') == u'publisher':
-            # Create a publisher user
-            rev = model.repo.new_revision()
-            self.publisher_user = model.User(name=u'test-publisher-user',password=u'test')
-            self.publisher = model.Group(name=u'test-publisher',title=u'Test Publihser',type=u'publisher')
-            Session.add(self.publisher_user)
-            Session.add(self.publisher)
+        if is_publisher_profile:
+            # Create a publisher and user
+            self.publisher, self.publisher_user = \
+                    self._create_publisher_and_user('test-publisher', 'test-publisher-user')
+            self.publisher2, self.publisher_user2 = \
+                    self._create_publisher_and_user('test-publisher2', 'test-publisher-user2')
 
-            Session.commit()
-
-            member = model.Member(table_name = 'user',
-                             table_id = self.publisher_user.id,
-                             group=self.publisher,
-                             capacity='admin')
-            Session.add(member)
-
-            Session.commit()
+    def _create_publisher_and_user(self, publisher_name, user_name):
+        CreateTestData.create_user(name=user_name, password='test')
+        CreateTestData.create_groups([
+            {'name': publisher_name,
+             'title': publisher_name.capitalize(),
+             'type': 'organization',
+             'is_organization': True,
+             'admins': [user_name],
+            }])
+        publisher = model.Group.get(publisher_name)
+        assert publisher
+        user = model.User.get(user_name)
+        assert user
+        return publisher, user
 
     def teardown(self):
        model.repo.rebuild_db()
@@ -92,7 +98,7 @@ class HarvestFixtureBase(SpatialTestBase):
                  'session':Session,
                  'user':u'harvest'}
 
-        if config.get('ckan.harvest.auth.profile') == u'publisher' \
+        if is_publisher_profile \
            and not 'publisher_id' in source_fixture:
            source_fixture['publisher_id'] = self.publisher.id
 
@@ -128,7 +134,7 @@ class HarvestFixtureBase(SpatialTestBase):
         if expect_obj_errors:
             assert len(obj.errors) > 0
         else:
-            assert len(obj.errors) == 0
+            assert len(obj.errors) == 0, obj.errors
 
         job.status = u'Finished'
         job.save()
@@ -225,8 +231,8 @@ class TestHarvest(HarvestFixtureBase):
                 raise AssertionError('Unexpected value for %s: %s (was expecting %s)' % \
                     (key, package_dict[key], value))
 
-        if config.get('ckan.harvest.auth.profile') == u'publisher':
-            assert package_dict['groups'] == [self.publisher.id]
+        if is_publisher_profile:
+            assert_equal(package_dict['owner_org'], self.publisher.id)
 
         expected_extras = {
             # Basic
@@ -344,8 +350,8 @@ class TestHarvest(HarvestFixtureBase):
                 raise AssertionError('Unexpected value for %s: %s (was expecting %s)' % \
                     (key, package_dict[key], value))
 
-        if config.get('ckan.harvest.auth.profile') == u'publisher':
-            assert package_dict['groups'] == [self.publisher.id]
+        if is_publisher_profile:
+            assert_equal(package_dict['owner_org'], self.publisher.id)
 
         expected_extras = {
             # Basic
@@ -638,7 +644,8 @@ class TestHarvest(HarvestFixtureBase):
         assert third_obj.current == True, second_obj.current == False
         assert first_obj.current == False
 
-        assert 'NEWER' in third_package_dict['title']
+        # check it is service1_newer
+        assert_equal(third_package_dict['extras']['metadata-date'], '2011-09-10')
         assert third_package_dict['state'] == u'active'
 
 
@@ -751,47 +758,78 @@ class TestHarvest(HarvestFixtureBase):
         assert first_obj.current == True
 
 
-    def test_harvest_moves_sources(self):
-
+    def test_harvest_duplicate_guids(self):
         # Create source1
         source1_fixture = {
             'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
-            'type': u'gemini-single'
+            'type': u'gemini-single',
+            'publisher_id': self.publisher.id,
         }
 
         source1, first_job = self._create_source_and_job(source1_fixture)
 
         first_obj = self._run_job_for_single_document(first_job)
 
-        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+        first_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
 
         # Package was created
         assert first_package_dict
         assert first_package_dict['state'] == u'active'
         assert first_obj.current == True
+        assert_equal(first_package_dict['organization']['name'], 'test-publisher')
 
-        # Harvest the same document GUID but with a newer date, from another source. 
+        # Harvest the same document GUID, DIFFERENT title, from another source.
+        # The GUID is clearly copied, so don't allow it.
         source2_fixture = {
-            'url': u'http://127.0.0.1:8999/gemini2.1/service1_newer.xml',
-            'type': u'gemini-single'
+            'url': u'http://127.0.0.1:8999/gemini2.1/service1_but_different_title.xml',
+            'type': u'gemini-single',
+            'publisher_id': self.publisher2.id,
+        }
+
+        source2, second_job = self._create_source_and_job(source2_fixture)
+
+        second_obj = self._run_job_for_single_document(second_job, expect_obj_errors=True)
+        assert_in('GUIDs must be globally unique', second_obj.errors[0].message)
+
+
+    def test_harvest_moves_sources(self):
+
+        # Create source1
+        source1_fixture = {
+            'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
+            'type': u'gemini-single',
+            'publisher_id': self.publisher.id,
+        }
+
+        source1, first_job = self._create_source_and_job(source1_fixture)
+
+        first_obj = self._run_job_for_single_document(first_job)
+
+        first_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert first_package_dict
+        assert first_package_dict['state'] == u'active'
+        assert first_obj.current == True
+        assert_equal(first_package_dict['organization']['name'], 'test-publisher')
+
+        # Harvest the same document GUID but with a newer date, from another source.
+        source2_fixture = {
+            'url': u'http://127.0.0.1:8999/gemini2.1/service1_duplicate.xml',
+            'type': u'gemini-single',
+            'publisher_id': self.publisher2.id,
         }
 
         source2, second_job = self._create_source_and_job(source2_fixture)
 
         second_obj = self._run_job_for_single_document(second_job)
+        second_package_dict = get_action('package_show')(self.context, {'id': first_obj.package_id})
 
-        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
-
-        # Now we have two packages
-        assert second_package_dict, first_package_dict['id'] == second_package_dict['id']
-        assert second_package_dict['metadata_modified'] > first_package_dict['metadata_modified']
-        assert second_obj.package
-        assert second_obj.current == True
-        assert first_obj.current == True
-        # so currently, if you move a Gemini between harvest sources you need
-        # to update the date to get it to reharvest, and then you should
-        # withdraw the package relating to the original harvest source.
-
+        # The old package has simply changed to the new publisher and name
+        assert second_package_dict['id'] == first_package_dict['id']
+        assert_equal(second_package_dict['organization']['name'], 'test-publisher2')
+        # To move a Gemini record between harvest sources you can just
+        # refer to it in a harvest source under the new publisher and reharvest.
 
     def test_harvest_import_command(self):
 

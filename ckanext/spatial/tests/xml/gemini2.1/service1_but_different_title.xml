@@ -68,7 +68,7 @@
       </gmd:CI_ResponsibleParty>
     </gmd:contact>
     <gmd:dateStamp>
-      <gco:DateTime xmlns:gml="http://www.opengis.net/gml">2011-09-10T00:00:01</gco:DateTime>
+      <gco:DateTime xmlns:gml="http://www.opengis.net/gml">2011-09-09T16:07:32</gco:DateTime>
     </gmd:dateStamp>
     <gmd:referenceSystemInfo/>
     <gmd:referenceSystemInfo>
@@ -93,7 +93,7 @@
         <gmd:citation>
           <gmd:CI_Citation>
             <gmd:title>
-              <gco:CharacterString>One Scotland Address Gazetteer Web Map Service (WMS)</gco:CharacterString>
+              <gco:CharacterString>Completely different title</gco:CharacterString>
             </gmd:title>
             <gmd:date>
               <gmd:CI_Date>
@@ -345,3 +345,4 @@
       </gmd:DQ_DataQuality>
     </gmd:dataQualityInfo>
   </gmd:MD_Metadata>
+

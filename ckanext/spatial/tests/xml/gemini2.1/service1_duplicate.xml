@@ -68,7 +68,7 @@
       </gmd:CI_ResponsibleParty>
     </gmd:contact>
     <gmd:dateStamp>
-      <gco:DateTime xmlns:gml="http://www.opengis.net/gml">2011-09-10T00:00:01</gco:DateTime>
+      <gco:DateTime xmlns:gml="http://www.opengis.net/gml">2011-09-08T16:07:32</gco:DateTime>
     </gmd:dateStamp>
     <gmd:referenceSystemInfo/>
     <gmd:referenceSystemInfo>
@@ -345,3 +345,4 @@
       </gmd:DQ_DataQuality>
     </gmd:dataQualityInfo>
   </gmd:MD_Metadata>
+

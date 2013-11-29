@@ -58,10 +58,9 @@ class GetContentError(Exception):
 def text_traceback():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        res = 'the original traceback:'.join(
-            cgitb.text(sys.exc_info()).split('the original traceback:')[1:]
-        ).strip()
-    return res
+        # I am not sure why we used cgitb before - I saw it cause issues the
+        # way it used inspect on a sqlalchemy detached object
+        return traceback.format_exc()
 
 # When developing, it might be helpful to 'export DEBUG=1' to reraise the
 # exceptions, rather them being caught.
@@ -293,11 +292,35 @@ class GeminiHarvester(SpatialHarvester):
 
         reactivate_package = False
         if last_harvested_object:
-            # We've previously harvested this (i.e. it's an update)
+            # We've previously harvested this GUID (i.e. it's probably an
+            # update)
+
+            # Special case - when a record moves from one publisher to another
+            has_publisher_changed = (last_harvested_object.package.owner_org !=
+                                     self.obj.source.publisher_id)
+            transfer_publisher = False
+            if has_publisher_changed:
+                has_title_changed = (last_harvested_object.package.title !=
+                                     gemini_values['title'])
+                if has_title_changed:
+                    # New publisher and title - this looks like this an error
+                    # with the metadata - the GUID has been copied onto a
+                    # completely different dataset.
+                    raise Exception('The document with GUID %s matches a record from another publisher with a different title (%s). GUIDs must be globally unique.' % (gemini_guid, last_harvested_object.package.name))
+                else:
+                    # New publisher, same title - looks like the dataset is
+                    # being transferred to a new publisher - this is
+                    # legitimate.
+                    transfer_publisher = True
+                    # In this instance its ok to not update the modified_date,
+                    # but don't allow it to be earlier.
+                    if last_harvested_object.metadata_modified_date > self.obj.metadata_modified_date:
+                        raise Exception('The document with GUID %s has changed its publisher, but the metadata date in the newly harvested copy is earlier than before.' % gemini_guid)
 
             # Use metadata modified date instead of content to determine if the package
             # needs to be updated
             if last_harvested_object.metadata_modified_date is None \
+                or transfer_publisher \
                 or last_harvested_object.metadata_modified_date < self.obj.metadata_modified_date \
                 or self.force_import \
                 or (last_harvested_object.metadata_modified_date == self.obj.metadata_modified_date and
@@ -370,7 +393,9 @@ class GeminiHarvester(SpatialHarvester):
             )
         extras.update(licence_extras)
 
+        # Access constraints
         extras['access_constraints'] = gemini_values.get('limitations-on-public-access','')
+
         if gemini_values.has_key('temporal-extent-begin'):
             #gemini_values['temporal-extent-begin'].sort()
             extras['temporal_coverage-from'] = gemini_values['temporal-extent-begin']
@@ -688,6 +713,7 @@ class GeminiHarvester(SpatialHarvester):
         try:
             package_dict = action_function(context, package_dict)
         except ValidationError,e:
+            # This would be raised in ckanext.spatial.plugin.check_spatial_extra
             raise Exception('Validation Error: %s' % str(e.error_summary))
             if debug_exception_mode:
                 raise
