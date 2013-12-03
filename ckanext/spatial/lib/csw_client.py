@@ -65,6 +65,7 @@ class CswService(OwsService):
     """
     Perform various operations on a CSW service
     """
+    from owslib.csw import CatalogueServiceWeb as _Implementation
     def getrecords(self, qtype=None, keywords=[],
                    typenames="csw:Record", esn="brief",
                    skip=0, count=10, outputschema="gmd", **kw):
@@ -135,7 +136,7 @@ class CswService(OwsService):
             for ident in identifiers:
                 yield ident
 
-            if len(identifiers) < page:
+            if len(identifiers) == 0:
                 break
 
             i += len(identifiers)
