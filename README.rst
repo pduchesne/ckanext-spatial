@@ -210,7 +210,7 @@ For details, type::
 
 There are options for querying by only certain types, keywords and typenames as well as configuring the ElementSetName.
 
-The equivalent example to the one above for asking the cabailities is::
+The equivalent example to the one above for asking the capabilities is::
 
  $ cswinfo csw getcapabilities http://127.0.0.1:5000/csw
 
