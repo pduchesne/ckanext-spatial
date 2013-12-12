@@ -8,6 +8,7 @@ from nose.tools import assert_equal, assert_in
 from ckan import plugins
 from ckan.lib.base import config
 from ckan.lib.create_test_data import CreateTestData
+from ckan.lib.helpers import get_pkg_dict_extra
 from ckan import model
 from ckan.model import Session,Package
 from ckan.logic.schema import default_update_package_schema
@@ -262,6 +263,8 @@ class TestHarvest(HarvestFixtureBase):
             'spatial-reference-system': u'OSGB 1936 / British National Grid (EPSG:27700)',
             'temporal_coverage-from': u'["1904-06-16"]',
             'temporal_coverage-to': u'["2004-06-16"]',
+            'theme-primary': 'Geography',
+            'themes-secondary': '["Society"]',
         }
 
         for key,value in expected_extras.iteritems():
@@ -269,6 +272,7 @@ class TestHarvest(HarvestFixtureBase):
                 raise AssertionError('Extra %s not present in package' % key)
 
             if not package_dict['extras'][key] == value:
+                import pdb; pdb.set_trace()
                 raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
                     (key, package_dict['extras'][key], value))
 
@@ -526,10 +530,11 @@ class TestHarvest(HarvestFixtureBase):
 
         first_obj = self._run_job_for_single_document(first_job)
 
-        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+        first_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
 
         # Package was created
         assert first_package_dict
+        assert_equal(get_pkg_dict_extra(first_package_dict, 'theme-primary'), 'Geography')
         assert first_obj.current == True
         assert first_obj.package
 
@@ -545,13 +550,24 @@ class TestHarvest(HarvestFixtureBase):
         Session.refresh(first_obj)
         Session.refresh(second_obj)
 
-        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+        second_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
 
         # Package was not updated
         assert second_package_dict, first_package_dict['id'] == second_package_dict['id']
         assert first_package_dict['metadata_modified'] == second_package_dict['metadata_modified']
         assert not second_obj.package, not second_obj.package_id
         assert second_obj.current == False, first_obj.current == True
+
+        # Change the theme, as if it was changed to a better value manually (by sysadmin)
+        for extra in second_package_dict['extras']:
+            if extra['key'] == 'theme-primary':
+                extra['value'] = 'New Theme'
+                break
+        else:
+            assert 0
+        get_action('package_update')(self.context, second_package_dict)
+        edited_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
+        assert_equal(get_pkg_dict_extra(edited_package_dict, 'theme-primary'), 'New Theme')
 
         # Create and run a third job, forcing the importing to simulate an update in the package
         third_job = self._create_job(source.id)
@@ -577,6 +593,11 @@ class TestHarvest(HarvestFixtureBase):
         assert third_obj.current == True
         assert second_obj.current == False
         assert first_obj.current == False
+
+        # Yet this field remains untouched
+        edited_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
+        assert_equal(get_pkg_dict_extra(edited_package_dict, 'theme-primary'), 'New Theme')
+
 
     def test_harvest_deleted_record(self):
 

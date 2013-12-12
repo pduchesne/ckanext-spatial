@@ -371,6 +371,11 @@ class GeminiHarvester(SpatialHarvester):
             'metadata-date': metadata_modified_date.strftime('%Y-%m-%d'),
         }
 
+        # Bring forward extras which may be manually edited
+        if package:
+            for extra_key in ('theme-primary', 'themes-secondary'):
+                extras[extra_key] = package.extras.get(extra_key)
+
         # Just add some of the metadata as extras, not the whole lot
         for name in [
             # Essentials
@@ -440,7 +445,6 @@ class GeminiHarvester(SpatialHarvester):
         if self.obj.source.publisher_id:
             package_dict['owner_org'] = self.obj.source.publisher_id
 
-
         if reactivate_package:
             package_dict['state'] = u'active'
 
@@ -498,6 +502,19 @@ class GeminiHarvester(SpatialHarvester):
                 extras_as_dict.append({'key':key,'value':json.dumps(value)})
 
         package_dict['extras'] = extras_as_dict
+
+        # DGU ONLY: Guess theme from other metadata
+        try:
+            from ckanext.dgu.lib.theme import categorize_package, PRIMARY_THEME, SECONDARY_THEMES
+            if not extras.get(PRIMARY_THEME):
+                themes = categorize_package(package_dict)
+                log.debug('%s given themes: %r', name, themes)
+                if themes:
+                    package_dict['extras'].append({'key':PRIMARY_THEME, 'value':themes[0]})
+                    if len(themes) == 2:
+                        package_dict['extras'].append({'key':SECONDARY_THEMES, 'value':'["%s"]' % themes[1]})
+        except ImportError:
+            pass
 
         if package == None:
             # Create new package from data.
