@@ -23,7 +23,7 @@ def get_coupled_packages(pkg):
                    couple.service_record and \
                    couple.service_record.state == 'active']
         return coupled_packages
-    
+
     elif res_type == 'service':
         # Find the dataset records which are pointed to in this service record
         coupled_resources = pkg.coupled_dataset
@@ -38,14 +38,14 @@ def get_coupled_packages(pkg):
 transformer = None
 def transform_gemini_to_html(gemini_xml):
     from ckanext.spatial.model.harvested_metadata import GeminiDocument
-    
+    global transformer
+
     if not transformer or \
            not asbool(config.get('ckan.spatial.cache_gemini_xsl', True)):
         # transformer is cached between requests unless a developer wants to avoid this with the config option
         with resource_stream("ckanext.spatial",
                              "templates/ckanext/spatial/gemini2-html-stylesheet.xsl") as style:
             style_xml = etree.parse(style)
-            global transformer
             transformer = etree.XSLT(style_xml)
 
     xml = etree.fromstring(gemini_xml)
@@ -67,4 +67,4 @@ def transform_gemini_to_html(gemini_xml):
               'language': gemini_doc.read_value('metadata-language'),
               }
     return header, body
-              
+
