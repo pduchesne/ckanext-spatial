@@ -369,6 +369,18 @@ class SpatialHarvester(HarvesterBase):
         else:
             log.debug('No spatial extent defined for this object')
 
+        if (harvest_object.raw_metadata_request):
+            resource = {}
+            resource['format'] = 'xml' # assume the original request is a GetCap and yields XML
+            resource.update(
+                {
+                    'url': harvest_object.raw_metadata_request,
+                    'name': 'Original Metadata request'
+                })
+            package_dict['resources'].append(resource)
+
+        operations = iso_values.get('resource-operations', [])
+
         resource_locators = iso_values.get('resource-locator', []) +\
             iso_values.get('resource-locator-identification', [])
 
