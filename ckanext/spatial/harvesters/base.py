@@ -90,19 +90,19 @@ def guess_resource_format(url, use_mimetypes=True):
 
     query_resource_types = {
         # OGC
-        'wms': ('service=wms'),
-        'wfs': ('service=wfs'),
-        'wcs': ('service=wcs'),
-        'sos': ('service=sos'),
-        'csw': ('service=csw'),
+        'wms': ('service=wms',),
+        'wfs': ('service=wfs',),
+        'wcs': ('service=wcs',),
+        'sos': ('service=sos',),
+        'csw': ('service=csw',),
         }
-
-    for resource_type, parts in base_resource_types.iteritems():
-        if any(part in baseurl for part in parts):
-            return resource_type
 
     for resource_type, parts in query_resource_types.iteritems():
         if any(part in query for part in parts):
+            return resource_type
+
+    for resource_type, parts in base_resource_types.iteritems():
+        if any(part in baseurl for part in parts):
             return resource_type
 
     file_types = {
