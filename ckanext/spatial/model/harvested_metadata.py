@@ -100,6 +100,16 @@ class MappedXmlElement(MappedXmlObject):
             value = self.element_tostring(element)
         return value
 
+    def get_values_dict(self, elements, key):
+        values = {}
+        if len(elements) == 0:
+            pass
+        else:
+            for element in elements:
+                value = self.get_value(element)
+                values[value.get(key)] = value
+        return values
+
     def element_tostring(self, element):
         return etree.tostring(element, pretty_print=False)
 
@@ -256,6 +266,34 @@ class ISOResponsibleParty(ISOElement):
             multiplicity="0..1",
         ),
     ]
+
+class ISOOperation(ISOElement):
+
+    elements = [
+        ISOElement(
+            name="name",
+            search_paths=[
+                "srv:operationName/gco:CharacterString/text()",
+                ],
+            multiplicity="1",
+            ),
+        ISOResourceLocator(
+            name="connectPoint",
+            search_paths=[
+                "srv:connectPoint/gmd:CI_OnlineResource",
+                ],
+            multiplicity="*",
+            ),
+        ]
+
+    def read_value(self, tree):
+        values = {}
+        for xpath in self.get_search_paths():
+            elements = self.get_elements(tree, xpath)
+            values = self.get_values_dict(elements, 'name')
+            if values:
+                break
+        return values
 
 
 class ISODataFormat(ISOElement):
@@ -827,10 +865,17 @@ class ISODocument(MappedXmlDocument):
         ISOResourceLocator(
             name="resource-locator-identification",
             search_paths=[
-                "gmd:identificationInfo//gmd:CI_OnlineResource",
-            ],
+                "gmd:identificationInfo//gmd:pointOfContact//gmd:CI_OnlineResource",
+                ],
             multiplicity="*",
-        ),
+            ),
+        ISOOperation(
+            name="resource-operations",
+            search_paths=[
+                "gmd:identificationInfo//srv:SV_OperationMetadata",
+                ],
+            multiplicity="*",
+            ),
         ISOElement(
             name="conformity-specification",
             search_paths=[

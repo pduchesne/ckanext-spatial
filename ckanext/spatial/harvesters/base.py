@@ -369,13 +369,22 @@ class SpatialHarvester(HarvesterBase):
         else:
             log.debug('No spatial extent defined for this object')
 
+        operations = iso_values.get('resource-operations', [])
+
         resource_locators = iso_values.get('resource-locator', []) +\
             iso_values.get('resource-locator-identification', [])
+
+        # look for GetCap endpoint
+        if (operations.get('GetCapabilities')):
+            resource_locators.append(operations.get('GetCapabilities').get('connectPoint')[0])
+
+        # keep track of service URLs already processed to avoid duplicates
+        processedUrls = []
 
         if len(resource_locators):
             for resource_locator in resource_locators:
                 url = resource_locator.get('url', '').strip()
-                if url:
+                if url and url not in processedUrls:
                     resource = {}
                     resource['format'] = guess_resource_format(url)
                     if resource['format'] == 'wms' and config.get('ckanext.spatial.harvest.validate_wms', False):
@@ -384,6 +393,7 @@ class SpatialHarvester(HarvesterBase):
                         if self._is_wms(test_url):
                             resource['verified'] = True
                             resource['verified_date'] = datetime.now().isoformat()
+                    processedUrls.append(url)
 
                     resource.update(
                         {
