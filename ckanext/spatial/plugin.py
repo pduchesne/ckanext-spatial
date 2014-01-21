@@ -139,17 +139,16 @@ class SpatialQuery(SingletonPlugin):
             bbox = validate_bbox(search_params['extras']['ext_bbox'])
             if not bbox:
                 raise SearchError('Wrong bounding box provided')
-
             if search_params.get('sort') == 'spatial desc':
-                if search_params['q'] or search_params['fq']:
+                if search_params.get('q') or search_params.get('fq'):
                     raise SearchError('Spatial ranking cannot be mixed with other search parameters')
                     # ...because it is too inefficient to use SOLR to filter
                     # results and return the entire set to this class and
                     # after_search do the sorting and paging.
                 extents = bbox_query_ordered(bbox)
                 are_no_results = not extents
-                search_params['extras']['ext_rows'] = search_params['rows']
-                search_params['extras']['ext_start'] = search_params['start']
+                search_params['extras']['ext_rows'] = search_params.get('rows', 50)
+                search_params['extras']['ext_start'] = search_params.get('start', 0)
                 # this SOLR query needs to return no actual results since
                 # they are in the wrong order anyway. We just need this SOLR
                 # query to get the count and facet counts.
@@ -157,8 +156,8 @@ class SpatialQuery(SingletonPlugin):
                 search_params['sort'] = None # SOLR should not sort.
                 # Store the rankings of the results for this page, so for
                 # after_search to construct the correctly sorted results
-                rows = search_params['extras']['ext_rows'] = search_params['rows']
-                start = search_params['extras']['ext_start'] = search_params['start']
+                rows = search_params['extras']['ext_rows'] = search_params.get('rows', 50)
+                start = search_params['extras']['ext_start'] = search_params.get('start', 0)
                 search_params['extras']['ext_spatial'] = [
                     (extent.package_id, extent.spatial_ranking) \
                     for extent in extents[start:start+rows]]
@@ -243,7 +242,7 @@ class DatasetExtentMap(SingletonPlugin):
                 elif map_type == 'os':
                     js_library_links = '<script src="http://osinspiremappingprod.ordnancesurvey.co.uk/libraries/openlayers-openlayers-56e25fc/lib/OpenLayers.js" type="text/javascript"></script>'
                     map_attribution = '' # done in the js instead
-                
+
                 data = {'extent': extent,
                         'title': _(title),
                         'map_type': map_type,
@@ -318,13 +317,13 @@ class HarvestMetadataApi(SingletonPlugin):
     '''
     Harvest Metadata API
     (previously called "InspireApi")
-    
+
     A way for a user to view the harvested metadata XML, either as a raw file or
     styled to view in a web browser.
     '''
     implements(IRoutes)
     implements(IConfigurer, inherit=True)
-        
+
     def before_map(self, route_map):
         harvest_metadata_api_controller = "ckanext.spatial.controllers.api:HarvestMetadataApiController"
 
@@ -338,7 +337,7 @@ class HarvestMetadataApi(SingletonPlugin):
 
     def update_config(self, config):
         here = os.path.dirname(__file__)
-        
+
         template_dir = os.path.join(here, 'templates')
 
         if config.get('extra_template_paths'):
