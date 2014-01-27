@@ -272,6 +272,7 @@ class SpatialHarvester(HarvesterBase):
             extras['resource-type'] = ''
 
         extras['licence'] = iso_values.get('use-constraints', '')
+        if harvest_object.raw_metadata_request: extras['metadata_request'] = harvest_object.raw_metadata_request
 
         def _extract_first_license_url(licences):
             for licence in licences:
@@ -369,6 +370,7 @@ class SpatialHarvester(HarvesterBase):
         else:
             log.debug('No spatial extent defined for this object')
 
+        ''' this block creates a dedicated resource with the original metadata query
         if (harvest_object.raw_metadata_request):
             resource = {}
             resource['format'] = 'xml' # assume the original request is a GetCap and yields XML
@@ -378,6 +380,8 @@ class SpatialHarvester(HarvesterBase):
                     'name': 'Original Metadata request'
                 })
             package_dict['resources'].append(resource)
+
+        '''
 
         operations = iso_values.get('resource-operations', [])
 
