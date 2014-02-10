@@ -189,8 +189,15 @@ class SpatialQuery(SingletonPlugin):
             pkgs = []
             for package_id, spatial_ranking in search_params['extras']['ext_spatial']:
                 # get package from SOLR
-                pkg = querier.get_index(package_id)['data_dict']
-                pkgs.append(json.loads(pkg))
+                try:
+                    pkg = querier.get_index(package_id)['data_dict']
+                    pkgs.append(json.loads(pkg))
+                except SearchError:
+                    # if this dataset is not in the index, then the error goes
+                    # in the log to attract attention of sysadmins, but we
+                    # still want to try and return the other results, as we
+                    # would for a normal CKAN text search.
+                    pass
             search_results['results'] = pkgs
         return search_results
 

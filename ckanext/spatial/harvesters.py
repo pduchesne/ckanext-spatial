@@ -10,25 +10,24 @@ but can be easily adapted for other INSPIRE/ISO19139 XML metadata
 TODO: Harvesters for generic INSPIRE CSW servers
 
 '''
-import cgitb
 import warnings
 import urllib2
 from urlparse import urlparse, urlunparse
 from datetime import datetime
 from string import Template
 from numbers import Number
-import sys
 import uuid
 import os
 import logging
 import difflib
 import traceback
+import re
 
 from lxml import etree
 from pylons import config
 from sqlalchemy.sql import update, bindparam
 from sqlalchemy.exc import InvalidRequestError
-from owslib import wms
+from owslib import wms as owslib_wms
 from paste.deploy.converters import asbool
 
 from ckan import model
@@ -73,13 +72,14 @@ class SpatialHarvester(object):
 
     @classmethod
     def _is_wms(cls, url):
-        '''Given a URL this method returns whether it thinks it is a WMS server
-        or not. It does it by making basic WMS requests.
+        '''Given a WMS URL this method returns whether it thinks it is a WMS server
+        or not. It does it by making basic WMS 1.1.1 requests (NB INSPIRE
+        should really be WMS 1.3).
         '''
         # Here's a neat way to test this manually:
         # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._is_wms('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
-            capabilities_url = wms.WMSCapabilitiesReader().capabilities_url(url)
+            capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
             try:
                 res = urllib2.urlopen(capabilities_url, None, 10)
             except urllib2.HTTPError, e:
@@ -88,7 +88,7 @@ class SpatialHarvester(object):
                 return False
             xml = res.read()
             try:
-                s = wms.WebMapService(url,xml=xml)
+                wms = owslib_wms.WebMapService(url,xml=xml)
             except AttributeError, e:
                 # e.g. http://csw.data.gov.uk/geonetwork/srv/en/csw
                 log.info('WMS check for %s failed due to GetCapabilities response not containing a required field: %s', url, traceback.format_exc())
@@ -97,9 +97,58 @@ class SpatialHarvester(object):
                 # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
                 log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
                 return False
-            return isinstance(s.contents, dict) and s.contents != {}
+            is_wms = isinstance(wms.contents, dict) and wms.contents != {}
+            return is_wms
         except Exception, e:
             log.exception('WMS check for %s failed with uncaught exception: %s' % (url, str(e)))
+        return False
+
+
+    @classmethod
+    def _wms_base_urls(cls, url):
+        '''Given a WMS URL this method returns the base URLs it uses. It does
+        it by making basic WMS requests.
+        '''
+        # Here's a neat way to test this manually:
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
+        try:
+            capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
+            # Get rid of the "version=1.1.1" param that OWSLIB adds, because
+            # the OS WMS previewer doesn't specify a version, so may receive
+            # later versions by default. And versions like 1.3 may have
+            # different base URLs. It does mean that we can't use OWSLIB to parse
+            # the result though.
+            capabilities_url = re.sub('&version=[^&]+', '', capabilities_url)
+            try:
+                res = urllib2.urlopen(capabilities_url, None, 10)
+            except urllib2.HTTPError, e:
+                # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
+                log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
+                return False, set()
+            xml_str = res.read()
+            parser = etree.XMLParser(remove_blank_text=True)
+            try:
+                xml_tree = etree.fromstring(xml_str, parser=parser)
+            except etree.XMLSyntaxError, e:
+                # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
+                log.info('WMS base urls for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                return []
+            # check it is a WMS
+            if not 'wms' in str(xml_tree).lower():
+                log.info('WMS base urls %s failed - XML top tag was not WMS response: %s', url, str(xml_tree))
+                return []
+            base_urls = set()
+            namespaces = {'wms': 'http://www.opengis.net/wms', 'xlink': 'http://www.w3.org/1999/xlink'}
+            xpath = '//wms:HTTP//wms:OnlineResource/@xlink:href'
+            urls = xml_tree.xpath(xpath, namespaces=namespaces)
+            for url in urls:
+                if url:
+                    base_url = url.split('?')[0]
+                    base_urls.add(base_url)
+            log.info('Extra WMS base urls: %r', base_urls)
+            return base_urls
+        except Exception, e:
+            log.exception('WMS base url extraction %s failed with uncaught exception: %s' % (url, str(e)))
         return False
 
     def _get_validator(self):
@@ -469,9 +518,12 @@ class GeminiHarvester(SpatialHarvester):
                     if extras['resource-type'] == 'service':
                         # Check if the service is a view service
                         test_url = url.split('?')[0] if '?' in url else url
-                        if self._is_wms(test_url):
+                        is_wms = self._is_wms(test_url)
+                        if is_wms:
                             resource['verified'] = True
                             resource['verified_date'] = datetime.now().isoformat()
+                            base_urls = self._wms_base_urls(test_url)
+                            resource['wms_base_urls'] = ' '.join(base_urls)
                             resource_format = 'WMS'
                     resource.update(
                         {
@@ -733,6 +785,8 @@ class GeminiHarvester(SpatialHarvester):
             action_function = get_action('package_update')
             package_dict['id'] = package.id
 
+        log = logging.getLogger(__name__ + '.import')
+        log.info('package_create/update %r %r', context, package_dict)
         try:
             package_dict = action_function(context, package_dict)
         except ValidationError,e:
