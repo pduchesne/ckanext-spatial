@@ -263,8 +263,8 @@ class TestHarvest(HarvestFixtureBase):
             'spatial-reference-system': u'OSGB 1936 / British National Grid (EPSG:27700)',
             'temporal_coverage-from': u'["1904-06-16"]',
             'temporal_coverage-to': u'["2004-06-16"]',
-            'theme-primary': 'Geography',
-            'themes-secondary': '["Society"]',
+            'theme-primary': 'Mapping',
+            'themes-secondary': '["Environment"]',
         }
 
         for key,value in expected_extras.iteritems():
@@ -272,7 +272,6 @@ class TestHarvest(HarvestFixtureBase):
                 raise AssertionError('Extra %s not present in package' % key)
 
             if not package_dict['extras'][key] == value:
-                import pdb; pdb.set_trace()
                 raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
                     (key, package_dict['extras'][key], value))
 
@@ -534,7 +533,7 @@ class TestHarvest(HarvestFixtureBase):
 
         # Package was created
         assert first_package_dict
-        assert_equal(get_pkg_dict_extra(first_package_dict, 'theme-primary'), 'Geography')
+        assert_equal(get_pkg_dict_extra(first_package_dict, 'theme-primary'), 'Towns')
         assert first_obj.current == True
         assert first_obj.package
 
@@ -558,7 +557,7 @@ class TestHarvest(HarvestFixtureBase):
         assert not second_obj.package, not second_obj.package_id
         assert second_obj.current == False, first_obj.current == True
 
-        # Change the theme, as if it was changed to a better value manually (by sysadmin)
+        # Change the theme, as if it was changed to a different value manually (by sysadmin)
         for extra in second_package_dict['extras']:
             if extra['key'] == 'theme-primary':
                 extra['value'] = 'New Theme'
@@ -594,9 +593,9 @@ class TestHarvest(HarvestFixtureBase):
         assert second_obj.current == False
         assert first_obj.current == False
 
-        # Yet this field remains untouched
+        # Including the theme. Publishers should use the GEMET INSPIRE Keyword to set theme, not rely on sysadmins.
         edited_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
-        assert_equal(get_pkg_dict_extra(edited_package_dict, 'theme-primary'), 'New Theme')
+        assert_equal(get_pkg_dict_extra(edited_package_dict, 'theme-primary'), 'Towns')
 
 
     def test_harvest_deleted_record(self):
