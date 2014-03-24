@@ -39,6 +39,7 @@ from ckan.lib.helpers import json
 from ckan import logic
 from ckan.logic import get_action, ValidationError
 from ckan.lib.navl.validators import not_empty
+from ckan.lib.munge import substitute_ascii_equivalents
 
 from ckanext.harvest.interfaces import IHarvester
 from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
@@ -60,6 +61,11 @@ def text_traceback():
         # I am not sure why we used cgitb before - I saw it cause issues the
         # way it used inspect on a sqlalchemy detached object
         return traceback.format_exc()
+
+def munge_tag(tag):
+    tag = substitute_ascii_equivalents(tag).lower().strip()
+    return re.sub(r'[^a-zA-Z0-9 -]', '', tag).replace(' ', '-')
+
 
 # When developing, it might be helpful to 'export DEBUG=1' to reraise the
 # exceptions, rather them being caught.
@@ -185,11 +191,11 @@ class SpatialHarvester(object):
 
     def _get_content(self, url):
         '''
-        Requests the URL and returns the response body and the URL (it may 
+        Requests the URL and returns the response body and the URL (it may
         change due to 301 redirection).
 
         The returned content is a str string i.e. not unicode. The content
-        will probably contain character encoding. The XML may have a 
+        will probably contain character encoding. The XML may have a
         declaration such as:
           <?xml version='1.0' encoding='ASCII'?>
         but often won\'t. The assumed encoding for Gemini2 is UTF8.
@@ -477,12 +483,22 @@ class GeminiHarvester(SpatialHarvester):
                 maxy = extras['bbox-north-lat']
                 )
 
-        extras['spatial'] = extent_string.strip()
+        try:
+            extent_json = json.loads(extent_string)
+            extras['spatial'] = extent_string.strip()
+        except:
+            # Unable to load this string as JSON, so perhaps the template
+            # is incomplete or one of the extra fields contains an empty string
+            log.error("Failed to build the spatial extra for {0} using {1}"\
+                .format(package.name, extent_string))
 
         tags = []
         for tag in gemini_values['tags']:
             tag = tag[:50] if len(tag) > 50 else tag
-            tags.append({'name':tag})
+            # We should ensure that the tag name is okay to stop it exploding
+            # later in processing. We can do this by removing anything that
+            # isn't an allowed character
+            tags.append({'name': munge_tag(tag), 'display_name': tag})
 
         package_dict = {
             'title': gemini_values['title'],
@@ -799,7 +815,7 @@ class GeminiHarvester(SpatialHarvester):
 
     def get_gemini_string_and_guid(self,gemini_string,url=None):
         '''From a string buffer containing Gemini XML, return the tree
-        under gmd:MD_Metadata and the GUID for it. 
+        under gmd:MD_Metadata and the GUID for it.
 
         If it cannot parse the XML or find the GUID element, then gemini_guid
         will be ''.
