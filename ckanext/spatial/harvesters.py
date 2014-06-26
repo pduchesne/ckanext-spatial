@@ -54,6 +54,12 @@ log = logging.getLogger(__name__)
 class GetContentError(Exception):
     pass
 
+class ImportAbort(Exception):
+    pass
+
+class GatherError(Exception):
+    pass
+
 def text_traceback():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -86,6 +92,9 @@ class SpatialHarvester(object):
                 # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
                 log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
                 return False
+            except urllib2.URLError, e:
+                log.info('WMS check for %s failed due to HTTP connection error "%s".', capabilities_url, e)
+                return False
             xml = res.read()
             try:
                 wms = owslib_wms.WebMapService(url,xml=xml)
@@ -96,6 +105,10 @@ class SpatialHarvester(object):
             except etree.XMLSyntaxError, e:
                 # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
                 log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                return False
+            except owslib_wms.ServiceException:
+                # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
+                log.info('WMS check for %s failed - OGC error message: %s', url, traceback.format_exc())
                 return False
             is_wms = isinstance(wms.contents, dict) and wms.contents != {}
             return is_wms
@@ -171,7 +184,8 @@ class SpatialHarvester(object):
             Session.rollback()
             err.save()
         finally:
-            log.error(message)
+            # No need to alert administrator so don't log as an error, just info
+            log.info(message)
 
     def _save_object_error(self,message,obj,stage=u'Fetch'):
         err = HarvestObjectError(message=message,object=obj,stage=stage)
@@ -181,7 +195,8 @@ class SpatialHarvester(object):
             Session.rollback()
             err.save()
         finally:
-            log.error(message)
+            # No need to alert administrator so don't log as an error, just info
+            log.info(message)
 
     def _get_content(self, url):
         '''
@@ -243,12 +258,18 @@ class GeminiHarvester(SpatialHarvester):
                                       harvest_object.harvest_source_reference)
             log.info('Import completed - GUID %s', harvest_object.guid)
             return True
-        except Exception, e:
-            log.error('Exception during import: %s' % text_traceback())
+        except ImportAbort, e:
+            log.info('Import error: %s', text_traceback())
             if not str(e).strip():
                 self._save_object_error('Error importing Gemini document.', harvest_object, 'Import')
             else:
                 self._save_object_error('Error importing Gemini document\n%s' % str(e), harvest_object, 'Import')
+        except Exception, e:
+            log.error('System error during import: %s' % text_traceback())
+            if not str(e).strip():
+                self._save_object_error('System Error importing Gemini document.', harvest_object, 'Import')
+            else:
+                self._save_object_error('System Error importing Gemini document\n%s' % str(e), harvest_object, 'Import')
 
             if debug_exception_mode:
                 raise
@@ -263,7 +284,7 @@ class GeminiHarvester(SpatialHarvester):
         use to link dataset and service records.
 
         Non-fatal errors are recorded with _save_object_error().
-        Fatal errors simply raise an Exception.
+        Fatal errors raise an ImportAbort.
         '''
         log = logging.getLogger(__name__ + '.import')
 
@@ -281,21 +302,21 @@ class GeminiHarvester(SpatialHarvester):
         valid, messages = self._get_validator().is_valid(xml)
         if not valid:
             reject = asbool(config.get('ckan.spatial.validator.reject', False))
-            log.error('Errors found for object with GUID %s:' % self.obj.guid)
+            log.info('Errors found for object with GUID %s:' % self.obj.guid)
             out = ''
             if reject:
-                out = '** ABORT! ** Import of this object is aborted because of errors during validation.\n\n'
+                out = '** ABORT! ** Import of this object is aborted because of errors associated with validation.\n\n'
             out += messages[0] + ':\n\n' + '\n\n'.join(messages[1:]) + '\n\n'
             if not reject:
                 out += 'Validation errors have not caused the import of this object to be aborted.\n\n' # but possibly something else may cause abort later
             if reject:
-                raise Exception(out)
+                raise ImportAbort(out)
             else:
                 self._save_object_error(out,self.obj,'Import')
 
         unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
-        # may raise Exception for errors
+        # may raise ImportAbort for errors
         package_dict = self.write_package_from_gemini_string(unicode_gemini_string)
 
         if package_dict:
@@ -308,7 +329,7 @@ class GeminiHarvester(SpatialHarvester):
         that has come from a URL.
 
         Returns the package_dict of the result.
-        If there is an error, it returns None or raises Exception.
+        If there is an error, it returns None or raises ImportAbort.
         '''
         log = logging.getLogger(__name__ + '.import')
         package = None
@@ -320,7 +341,7 @@ class GeminiHarvester(SpatialHarvester):
         # by zero error in map searches. (DGU#782)
         if gemini_values['bbox-north-lat'] == gemini_values['bbox-south-lat'] \
           or gemini_values['bbox-west-long'] == gemini_values['bbox-east-long']:
-            raise Exception('The Extent\'s geographic bounding box has zero area for GUID %s' % gemini_guid)
+            raise ImportAbort('The Extent\'s geographic bounding box has zero area for GUID %s' % gemini_guid)
 
         # Save the metadata reference date in the Harvest Object
         try:
@@ -329,7 +350,7 @@ class GeminiHarvester(SpatialHarvester):
             try:
                 metadata_modified_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%dT%H:%M:%S')
             except:
-                raise Exception('Could not extract reference date for GUID %s (%s)' \
+                raise ImportAbort('Could not extract reference date for GUID %s (%s)' \
                         % (gemini_guid,gemini_values['metadata-date']))
 
         self.obj.metadata_modified_date = metadata_modified_date
@@ -343,7 +364,7 @@ class GeminiHarvester(SpatialHarvester):
         if len(last_harvested_object) == 1:
             last_harvested_object = last_harvested_object[0]
         elif len(last_harvested_object) > 1:
-                raise Exception('Application Error: more than one current record for GUID %s' % gemini_guid)
+                raise ImportAbort('System Error: more than one current record for GUID %s' % gemini_guid)
 
         reactivate_package = False
         if last_harvested_object:
@@ -361,7 +382,7 @@ class GeminiHarvester(SpatialHarvester):
                     # New publisher and title - this looks like this an error
                     # with the metadata - the GUID has been copied onto a
                     # completely different dataset.
-                    raise Exception('The document with GUID %s matches a record from another publisher with a different title (%s). GUIDs must be globally unique.' % (gemini_guid, last_harvested_object.package.name))
+                    raise ImportAbort('The document with GUID %s matches a record from another publisher with a different title (%s). GUIDs must be globally unique.' % (gemini_guid, last_harvested_object.package.name))
                 else:
                     # New publisher, same title - looks like the dataset is
                     # being transferred to a new publisher - this is
@@ -370,7 +391,7 @@ class GeminiHarvester(SpatialHarvester):
                     # In this instance its ok to not update the modified_date,
                     # but don't allow it to be earlier.
                     if last_harvested_object.metadata_modified_date > self.obj.metadata_modified_date:
-                        raise Exception('The document with GUID %s has changed its publisher, but the metadata date in the newly harvested copy (%s) is earlier than before (%s).' % (gemini_guid, self.obj.metadata_modified_date, last_harvested_object.metadata_modified_date))
+                        raise ImportAbort('The document with GUID %s has changed its publisher, but the metadata date in the newly harvested copy (%s) is earlier than before (%s).' % (gemini_guid, self.obj.metadata_modified_date, last_harvested_object.metadata_modified_date))
 
             # Use metadata modified date instead of content to determine if the package
             # needs to be updated
@@ -405,7 +426,7 @@ class GeminiHarvester(SpatialHarvester):
                         last_harvested_object.content.split('\n'),
                         self.obj.content.split('\n'))
                     diff = '\n'.join([line for line in diff_generator])
-                    raise Exception('The contents of document with GUID %s changed, but the metadata date has not been updated.\nDiff:\n%s' % (gemini_guid, diff))
+                    raise ImportAbort('The contents of document with GUID %s changed, but the metadata date has not been updated.\nDiff:\n%s' % (gemini_guid, diff))
                 else:
                     # The content hasn't changed, no need to update the package
                     log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
@@ -502,7 +523,7 @@ class GeminiHarvester(SpatialHarvester):
             if not name:
                 name = self.gen_new_name(str(gemini_guid))
             if not name:
-                raise Exception('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
+                raise ImportAbort('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
             package_dict['name'] = name
         else:
             package_dict['name'] = package.name
@@ -736,6 +757,8 @@ class GeminiHarvester(SpatialHarvester):
         a package object. If you supply package then it will update it,
         otherwise it will create a new one.
 
+        Errors raise ImportAbort.
+
         Uses the logic layer to create it.
 
         Returns a package_dict of the resulting package.
@@ -791,9 +814,7 @@ class GeminiHarvester(SpatialHarvester):
             package_dict = action_function(context, package_dict)
         except ValidationError,e:
             # This would be raised in ckanext.spatial.plugin.check_spatial_extra
-            raise Exception('Validation Error: %s' % str(e.error_summary))
-            if debug_exception_mode:
-                raise
+            raise ImportAbort('Validation Error: %s' % str(e.error_summary))
 
         return package_dict
 
@@ -883,10 +904,11 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
                     if identifier in used_identifiers:
-                        log.error('CSW identifier %r already used, skipping...' % identifier)
+                        # This seems to happen on DGU - see DGU#1475
+                        log.warning('CSW identifier %r already used, skipping. CSW: %s', identifier, url)
                         continue
                     if identifier is None:
-                        log.error('CSW returned identifier %r, skipping...' % identifier)
+                        log.warning('CSW returned blank identifier %r, skipping. CSW: %s', identifier, url)
                         ## log an error here? happens with the dutch data
                         continue
 
@@ -914,7 +936,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
             return None
         except Exception, e:
             log.error('Exception: %s' % text_traceback())
-            self._save_gather_error('Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
+            self._save_gather_error('System Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
             if debug_exception_mode:
                 raise
             return None
@@ -1109,8 +1131,13 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
                         msg = 'Could not get GUID for source %s: %r' % (url,e)
                         self._save_gather_error(msg,harvest_job)
                         continue
-        except Exception,e:
+        except GatherError, e:
             msg = 'Error extracting URLs from %s' % url
+            self._save_gather_error(msg,harvest_job)
+            return None
+        except Exception, e:
+            log.error('System error extracting URLs from %s: %s', url, text_traceback())
+            msg = 'System Error extracting URLs from %s' % url
             self._save_gather_error(msg,harvest_job)
             return None
 
@@ -1158,7 +1185,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         except Exception, inst:
             msg = 'Couldn\'t parse content into a tree: %s: %s' \
                   % (inst, content)
-            raise Exception(msg)
+            raise GatherError(msg)
         urls = []
         for url in tree.xpath('//a/@href'):
             url = url.strip()
