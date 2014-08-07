@@ -49,10 +49,24 @@ class XsdValidator(BaseValidator):
             msg = '%s Schema Error: %s' % (xsd_name, e.args)
             return False, [msg]
         except etree.DocumentInvalid, e:
-            msg = '%s Validation Error: %s' % (xsd_name, e.args)
+            error_str = cls.simplify_errors(e.args)
+            msg = '%s Validation Error: %s' % (xsd_name, error_str)
             return False, [msg]
         return True, []
 
+    @classmethod
+    def simplify_errors(cls, args):
+        '''Replace mouthfuls like this:
+        \'{http://www.isotc211.org/2005/gmd}identifier\'
+        with:
+        \'gmd:identifier\'
+        '''
+        # get the string out of a tuple
+        if isinstance(args, tuple) and len(args) == 1:
+            args = args[0]
+        err = unicode(args)
+        err = re.sub('{http://[^}]*/(\w+)}', r'\1:', err)
+        return err
 
 class ISO19139Schema(XsdValidator):
     name = 'iso19139'
