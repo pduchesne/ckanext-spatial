@@ -81,21 +81,29 @@ class Validation(CkanCommand):
         if not os.path.exists(metadata_filepath):
             print 'Filepath %s not found' % metadata_filepath
             sys.exit(1)
+
         with open(metadata_filepath, 'rb') as f:
             metadata_xml = f.read()
 
-        validators = SpatialHarvester()._get_validator()
-        print 'Validators: %r' % validators.profiles
+        # this is still encoded - hopefully as UTF8. If not, then it needs
+        # decoding and recoding as UTF8.
+
+        # Check it is UTF8, as that's what etree expects.
         try:
-            xml_string = metadata_xml.encode("utf-8")
+            decoded = metadata_xml.decode("utf-8")
+            reencoded = decoded.encode("utf-8")
         except UnicodeDecodeError, e:
-            print 'ERROR: Unicode Error reading file \'%s\': %s' % \
+            print 'ERROR: File was not UTF8 \'%s\': %s' % \
                   (metadata_filepath, e)
             sys.exit(1)
-            #import pdb; pdb.set_trace()
-        xml = etree.fromstring(xml_string)
+
+        # etree.fromstring accepts either a unicode string or the encoding is
+        # expressed in the <xml> tag. NB 'UTF-8' is correct, 'UTF8' is wrong.
+        xml = etree.fromstring(metadata_xml)
 
         # XML validation
+        validators = SpatialHarvester()._get_validator()
+        print 'Validators: %r' % validators.profiles
         valid, errors = validators.is_valid(xml)
 
         # CKAN read of values
