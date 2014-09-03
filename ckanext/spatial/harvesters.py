@@ -22,6 +22,7 @@ import logging
 import difflib
 import traceback
 import re
+import socket
 
 from lxml import etree
 from pylons import config
@@ -380,7 +381,6 @@ class GeminiHarvester(SpatialHarvester):
             # Special case - when a record moves from one publisher to another
             has_publisher_changed = (last_harvested_object.package.owner_org !=
                                      self.obj.source.publisher_id)
-            transfer_publisher = False
             if has_publisher_changed:
                 has_title_changed = (last_harvested_object.package.title !=
                                      gemini_values['title'])
@@ -391,18 +391,18 @@ class GeminiHarvester(SpatialHarvester):
                     raise ImportAbort('The document with GUID %s matches a record from another publisher with a different title (%s). GUIDs must be globally unique.' % (gemini_guid, last_harvested_object.package.name))
                 else:
                     # New publisher, same title - looks like the dataset is
-                    # being transferred to a new publisher - this is
-                    # legitimate.
-                    transfer_publisher = True
-                    # In this instance its ok to not update the modified_date,
-                    # but don't allow it to be earlier.
-                    if last_harvested_object.metadata_modified_date > self.obj.metadata_modified_date:
-                        raise ImportAbort('The document with GUID %s has changed its publisher, but the metadata date in the newly harvested copy (%s) is earlier than before (%s).' % (gemini_guid, self.obj.metadata_modified_date, last_harvested_object.metadata_modified_date))
+                    # being transferred to a new publisher - this was at one
+                    # time a legitimate thing, but I stopped it as there were
+                    # records being copied between publishers, but with the URL
+                    # being changed. So when it is legitimate, think of a
+                    # better way to do it very consiously and with sysadmin
+                    # permission.
+                    raise ImportAbort('The document with GUID %s matches a record from another publisher with a different title (%s). If you are trying to transfer a record between publishers, contact an administrator to do this.' % (gemini_guid, last_harvested_object.package.name))
 
             # Use metadata modified date instead of content to determine if the package
             # needs to be updated
+            log.debug('Metadata date %s (last time %s)', self.obj.metadata_modified_date, last_harvested_object.metadata_modified_date)
             if last_harvested_object.metadata_modified_date is None \
-                or transfer_publisher \
                 or last_harvested_object.metadata_modified_date < self.obj.metadata_modified_date \
                 or self.force_import \
                 or (last_harvested_object.metadata_modified_date == self.obj.metadata_modified_date and
@@ -442,6 +442,7 @@ class GeminiHarvester(SpatialHarvester):
 
         extras = {
             'UKLP': 'True',
+            'import_source': 'harvest',
             'harvest_object_id': self.obj.id,
             'harvest_source_reference': self.obj.harvest_source_reference,
             'metadata-date': metadata_modified_date.strftime('%Y-%m-%d'),
@@ -916,6 +917,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
         try:
             # csw.getidentifiers may propagate exceptions like
             # URLError: <urlopen error timed out>
+            # socket.timeout
             for identifier in self.csw.getidentifiers(page=10):
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
@@ -944,7 +946,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
                         raise
                     continue
 
-        except urllib2.URLError, e:
+        except (urllib2.URLError, socket.timeout) as e:
             log.info('Exception: %s' % text_traceback())
             self._save_gather_error('URL Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
             if debug_exception_mode:
