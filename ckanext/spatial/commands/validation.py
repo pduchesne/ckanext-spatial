@@ -109,7 +109,7 @@ class Validation(CkanCommand):
         # CKAN read of values
         if valid:
             try:
-                gemini_document = GeminiDocument(xml_string)
+                gemini_document = GeminiDocument(metadata_xml)
                 gemini_values = gemini_document.read_values()
             except Exception, e:
                 valid = False
