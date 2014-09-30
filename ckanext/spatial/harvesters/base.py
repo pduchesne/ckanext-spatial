@@ -57,7 +57,7 @@ def guess_standard(content):
     return 'unknown'
 
 
-def guess_resource_format(url, use_mimetypes=True):
+def guess_resource_format(url, protocol, use_mimetypes=True):
     '''
     Given a URL try to guess the best format to assign to the resource
 
@@ -71,6 +71,20 @@ def guess_resource_format(url, use_mimetypes=True):
     Returns None if no format could be guessed.
 
     '''
+
+
+    protocol_types = {
+        # OGC
+        'wms': ('OGC:WMS',),
+        'wfs': ('OGC:WFS',),
+        'wcs': ('OGC:WCS',),
+        'kml': ('KML',),
+        }
+
+    for resource_type, parts in protocol_types.iteritems():
+        if any(part in protocol for part in parts):
+            return resource_type
+
     url = url.lower().strip()
 
     # split query and location part, as some declared resources may actually be a viewer with a service as argument
@@ -79,9 +93,9 @@ def guess_resource_format(url, use_mimetypes=True):
 
     base_resource_types = {
         # OGC
-        'wms': ('geoserver/wms', 'mapserver/wmsserver', 'com.esri.wms.Esrimap', 'service/wms'),
-        'wfs': ('geoserver/wfs', 'mapserver/wfsserver', 'com.esri.wfs.Esrimap', 'service/wfs'),
-        'wcs': ('geoserver/wcs', 'imageserver/wcsserver', 'mapserver/wcsserver', 'service/wcs'),
+        'wms': ('geoserver/wms', 'mapserver/wmsserver', 'com.esri.wms.Esrimap', '/wms'),
+        'wfs': ('geoserver/wfs', 'mapserver/wfsserver', 'com.esri.wfs.Esrimap', '/wfs'),
+        'wcs': ('geoserver/wcs', 'imageserver/wcsserver', 'mapserver/wcsserver', '/wcs'),
         # ESRI
         'kml': ('mapserver/generatekml',),
         'arcims': ('com.esri.esrimap.esrimap',),
@@ -390,9 +404,15 @@ class SpatialHarvester(HarvesterBase):
         if len(resource_locators):
             for resource_locator in resource_locators:
                 url = resource_locator.get('url', '').strip()
-                if url:
+                protocol = resource_locator.get('protocol', '')
+                format = guess_resource_format(url, protocol)
+                if format in ['wms', 'wfs', 'wcs']:
+                    # remove query for OGC services
+                    url = url.split('?')[0] if '?' in url else url
+
+                if url and url not in processedUrls:
                     resource = {}
-                    resource['format'] = guess_resource_format(url)
+                    resource['format'] = format
                     if resource['format'] == 'wms' and config.get('ckanext.spatial.harvest.validate_wms', False):
                         # Check if the service is a view service
                         test_url = url.split('?')[0] if '?' in url else url
