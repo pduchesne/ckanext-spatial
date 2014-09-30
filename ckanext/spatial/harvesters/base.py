@@ -273,6 +273,13 @@ class SpatialHarvester(HarvesterBase):
         else:
             package_dict['name'] = package.name
 
+        # ODVL custom
+        package_dict['author'] = iso_values['contact']
+        package_dict['author_email'] = iso_values['contact-email']
+        package_dict['maintainer'] = iso_values['custodian-name']
+        package_dict['maintainer_email'] = iso_values['custodian-email']
+
+
         extras = {
             'guid': harvest_object.guid,
             'spatial_harvester': True,
@@ -293,6 +300,20 @@ class SpatialHarvester(HarvesterBase):
             'spatial-data-service-type',
         ]:
             extras[name] = iso_values[name]
+
+        if len(iso_values.get('dataset-publication-date',[])):
+            extras['dataset-publication-date'] = iso_values['dataset-publication-date'][0]['value']
+        if len(iso_values.get('dataset-revision-date',[])):
+            extras['dataset-revision-date'] = iso_values['dataset-revision-date'][0]['value']
+        if len(iso_values.get('edition',[])):
+            extras['edition'] = iso_values['edition'][0]
+        if len(iso_values.get('extent-free-text',[])):
+            extras['geographic-description'] = iso_values['extent-free-text'][0]
+        if len(iso_values.get('keyword-gemet-theme',[])):
+            extras['gemet-theme'] = iso_values['keyword-gemet-theme'][0]
+
+        if iso_values['conformity-specification']:
+            extras['conformity-specification-title'] = iso_values['conformity-specification']['title']
 
         if len(iso_values.get('progress', [])):
             extras['progress'] = iso_values['progress'][0]
@@ -418,8 +439,10 @@ class SpatialHarvester(HarvesterBase):
 
         operations = iso_values.get('resource-operations', [])
 
-        resource_locators = iso_values.get('resource-locator', []) +\
-            iso_values.get('resource-locator-identification', [])
+        resource_locators = iso_values.get('resource-locator-transfer', [])
+        # ODVL update : only take Distribution/TransferOptions
+        # + iso_values.get('resource-locator-distrib', [])# +\
+        # + iso_values.get('resource-locator-identification', [])
 
         # look for GetCap endpoint
         if (operations.get('GetCapabilities')):

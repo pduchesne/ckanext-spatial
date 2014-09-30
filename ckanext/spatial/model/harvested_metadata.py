@@ -337,6 +337,25 @@ class ISOReferenceDate(ISOElement):
         ),
     ]
 
+class ISOSpecification(ISOElement):
+
+    elements = [
+        ISOElement(
+            name="title",
+            search_paths=[
+                "gmd:CI_Citation/gmd:title/gco:CharacterString/text()",
+                ],
+            multiplicity="0..1",
+            ),
+        ISOReferenceDate(
+            name="date",
+            search_paths=[
+                "gmd:date/gmd:CI_Date"
+            ],
+            multiplicity="0..1",
+            )
+    ]
+
 class ISOCoupledResources(ISOElement):
 
     elements = [
@@ -580,6 +599,14 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*",
         ),
+        ISOElement(
+            name="edition",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:edition/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:edition/gco:CharacterString/text()",
+                ],
+            multiplicity="1..*",
+            ),
         ISOReferenceDate(
             name="dataset-reference-date",
             search_paths=[
@@ -588,6 +615,31 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="1..*",
         ),
+        ISOReferenceDate(
+            name="dataset-publication-date",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode[@codeListValue=\"publication\"]]",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date",
+                ],
+            multiplicity="1..*",
+            ),
+        ISOReferenceDate(
+            name="dataset-revision-date",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode[@codeListValue=\"revision\"]]",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date",
+                ],
+            multiplicity="1..*",
+            ),
+        ## Todo: Suggestion from PP not to bother pulling this into the package.
+        #ISOElement(
+        #    name="unique-resource-identifier",
+        #    search_paths=[
+        #        "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier",
+        #        "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier",
+        #    ],
+        #    multiplicity="1",
+        #),
         ISOElement(
             name="unique-resource-identifier",
             search_paths=[
@@ -623,6 +675,20 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="0..1",
         ),
+        ISOResponsibleParty(
+            name="contact-organisation",
+            search_paths=[
+                "gmd:contact/gmd:CI_ResponsibleParty",
+                ],
+            multiplicity="1..*",
+            ),
+        ISOResponsibleParty(
+            name="custodian",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue=\"custodian\"]]",
+                ],
+            multiplicity="1..*",
+            ),
         ISOResponsibleParty(
             name="responsible-organisation",
             search_paths=[
@@ -668,6 +734,14 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*"
         ),
+        ISOElement(
+            name="keyword-gemet-theme",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords[contains(gmd:thesaurusName/gmd:CI_Citation/gmd:title/gco:CharacterString/text(),'GEMET - INSPIRE')]/gmd:keyword/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString/text()",
+                ],
+            multiplicity="*",
+            ),
         ISOElement(
             name="keyword-inspire-theme",
             search_paths=[
@@ -855,9 +929,15 @@ class ISODocument(MappedXmlDocument):
             multiplicity="*",
         ),
         ISOResourceLocator(
-            name="resource-locator",
+            name="resource-locator-transfer",
             search_paths=[
-                "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource",
+                "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource"
+            ],
+            multiplicity="*",
+            ),
+        ISOResourceLocator(
+            name="resource-locator-distrib",
+            search_paths=[
                 "gmd:distributionInfo/gmd:MD_Distribution/gmd:distributor/gmd:MD_Distributor/gmd:distributorTransferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource"
             ],
             multiplicity="*",
@@ -876,7 +956,7 @@ class ISODocument(MappedXmlDocument):
                 ],
             multiplicity="*",
             ),
-        ISOElement(
+        ISOSpecification(
             name="conformity-specification",
             search_paths=[
                 "gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:report/gmd:DQ_DomainConsistency/gmd:result/gmd:DQ_ConformanceResult/gmd:specification",
@@ -926,6 +1006,8 @@ class ISODocument(MappedXmlDocument):
         self.infer_publisher(values)
         self.infer_contact(values)
         self.infer_contact_email(values)
+        self.infer_custodian(values)
+        self.infer_custodian_email(values)
         return values
 
     def infer_date_released(self, values):
@@ -961,11 +1043,19 @@ class ISODocument(MappedXmlDocument):
 
     def infer_url(self, values):
         value = ''
-        for locator in values['resource-locator']:
+        for locator in values['resource-locator-transfer'] + values['resource-locator-distrib']:
             if locator['function'] == 'information':
                 value = locator['url']
                 break
         values['url'] = value
+
+    # def infer_download_url(self, values):
+    #     value = ''
+    #     for locator in values['resource-locator']:
+    #         if locator['protocol'] in ['WWW:DOWNLOAD-1.0-http--download','LINK download-store','download' ]:
+    #             value = locator['url']
+    #             break
+    #     values['download-url'] = value
 
     def infer_tags(self, values):
         tags = []
@@ -986,7 +1076,7 @@ class ISODocument(MappedXmlDocument):
 
     def infer_contact(self, values):
         value = ''
-        for responsible_party in values['responsible-organisation']:
+        for responsible_party in values['contact-organisation'] + values['responsible-organisation']:
             value = responsible_party['organisation-name']
             if value:
                 break
@@ -994,7 +1084,7 @@ class ISODocument(MappedXmlDocument):
 
     def infer_contact_email(self, values):
         value = ''
-        for responsible_party in values['responsible-organisation']:
+        for responsible_party in values['contact-organisation'] + values['responsible-organisation']:
             if isinstance(responsible_party, dict) and \
                isinstance(responsible_party.get('contact-info'), dict) and \
                responsible_party['contact-info'].has_key('email'):
@@ -1002,6 +1092,25 @@ class ISODocument(MappedXmlDocument):
                 if value:
                     break
         values['contact-email'] = value
+
+    def infer_custodian(self, values):
+        value = ''
+        for responsible_party in values['custodian']:
+            value = responsible_party['organisation-name']
+            if value:
+                break
+        values['custodian-name'] = value
+
+    def infer_custodian_email(self, values):
+        value = ''
+        for responsible_party in values['custodian']:
+            if isinstance(responsible_party, dict) and \
+                    isinstance(responsible_party.get('contact-info'), dict) and \
+                    responsible_party['contact-info'].has_key('email'):
+                value = responsible_party['contact-info']['email']
+                if value:
+                    break
+        values['custodian-email'] = value
 
 
 class GeminiDocument(ISODocument):
