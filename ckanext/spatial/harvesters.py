@@ -86,13 +86,21 @@ class SpatialHarvester(object):
     @classmethod
     def _is_wms(cls, url):
         '''Given a WMS URL this method returns whether it thinks it is a WMS server
-        or not. It does it by making basic WMS 1.1.1 requests (NB INSPIRE
-        should really be WMS 1.3).
+        or not. It does it by making basic WMS requests.
         '''
-        # Here's a neat way to test this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._is_wms('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
+        # Try WMS 1.3 as that is what INSPIRE expects
+        is_wms = cls._try_wms_url(url, version='1.3')
+        # First try using WMS 1.1.1 as that is very common
+        if not is_wms:
+            is_wms = cls._try_wms_url(url, version='1.1.1')
+        log.debug('WMS check result: %s', is_wms)
+        return is_wms
+
+    @classmethod
+    def _try_wms_url(cls, url, version='1.3'):
         try:
-            capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
+            capabilities_url = owslib_wms.WMSCapabilitiesReader(version=version).capabilities_url(url)
+            log.debug('WMS check url: %s', capabilities_url)
             try:
                 res = urllib2.urlopen(capabilities_url, None, 10)
             except urllib2.HTTPError, e:
@@ -103,22 +111,44 @@ class SpatialHarvester(object):
                 log.info('WMS check for %s failed due to HTTP connection error "%s".', capabilities_url, e)
                 return False
             xml = res.read()
-            try:
-                wms = owslib_wms.WebMapService(url,xml=xml)
-            except AttributeError, e:
-                # e.g. http://csw.data.gov.uk/geonetwork/srv/en/csw
-                log.info('WMS check for %s failed due to GetCapabilities response not containing a required field: %s', url, traceback.format_exc())
+            if not xml.strip():
+                log.info('WMS check for %s failed due to empty response')
                 return False
-            except etree.XMLSyntaxError, e:
-                # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
-                log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
-                return False
-            except owslib_wms.ServiceException:
-                # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
-                log.info('WMS check for %s failed - OGC error message: %s', url, traceback.format_exc())
-                return False
-            is_wms = isinstance(wms.contents, dict) and wms.contents != {}
-            return is_wms
+            # owslib only supports reading WMS 1.1.1 (as of 10/2014)
+            if version == '1.1.1':
+                try:
+                    wms = owslib_wms.WebMapService(url, xml=xml)
+                except AttributeError, e:
+                    # e.g. http://csw.data.gov.uk/geonetwork/srv/en/csw
+                    log.info('WMS check for %s failed due to GetCapabilities response not containing a required field: %s', url, traceback.format_exc())
+                    return False
+                except etree.XMLSyntaxError, e:
+                    # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
+                    log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                    return False
+                except owslib_wms.ServiceException:
+                    # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
+                    log.info('WMS check for %s failed - OGC error message: %s', url, traceback.format_exc())
+                    return False
+                is_wms = isinstance(wms.contents, dict) and wms.contents != {}
+                return is_wms
+            else:
+                try:
+                    tree = etree.fromstring(xml)
+                except etree.XMLSyntaxError, e:
+                    # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
+                    log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                    return False
+                if tree.tag != '{http://www.opengis.net/wms}WMS_Capabilities':
+                    # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
+                    log.info('WMS check for %s failed as top tag is not wms:WMS_Capabilities, it was %s', url, tree.tag)
+                    return False
+                # check based on https://github.com/geopython/OWSLib/blob/master/owslib/wms.py
+                se = tree.find('ServiceException')
+                if se:
+                    log.info('WMS check for %s failed as it contained a ServiceException: %s', url, str(se.text).strip())
+                    return False
+                return True
         except Exception, e:
             log.exception('WMS check for %s failed with uncaught exception: %s' % (url, str(e)))
         return False

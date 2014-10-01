@@ -1,6 +1,4 @@
 import sys
-import re
-from pprint import pprint
 import logging
 
 from ckan.lib.cli import CkanCommand
@@ -20,7 +18,10 @@ class Spatial(CkanCommand):
         spatial extents
             Creates or updates the extent geometry column for datasets with
             an extent defined in the 'spatial' extra.
-      
+
+        spatial wms-check <wms_url>
+            Checks if a given URL responds like a WMS server does.
+
     The commands should be run from the ckanext-spatial directory and expect
     a development.ini file to be present. Most of the time you will
     specify the config explicitly though::
@@ -46,6 +47,8 @@ class Spatial(CkanCommand):
             self.initdb()    
         elif cmd == 'extents':
             self.update_extents()
+        elif cmd == 'wms-check':
+            self.wms_check()
         else:
             print 'Command %s not recognized' % cmd
 
@@ -95,3 +98,9 @@ class Spatial(CkanCommand):
 
         print msg
 
+    def wms_check(self):
+        assert len(self.args) == 2, \
+            'Wrong number of args. Got %s rather than 2' % len(self.args)
+        wms_url = self.args[1]
+        from ckanext.spatial.harvesters import SpatialHarvester
+        print SpatialHarvester._is_wms(wms_url)
