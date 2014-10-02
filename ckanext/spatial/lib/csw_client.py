@@ -103,8 +103,9 @@ class CswService(OwsService):
         if qtype is not None:
            constraints.append(PropertyIsEqualTo("dc:type", qtype))
 
-        for constraintName, constraintValue in cswconstraints.iteritems():
-            constraints.append(PropertyIsLike(constraintName, constraintValue))
+        if cswconstraints:
+            for constraintName, constraintValue in cswconstraints.iteritems():
+                constraints.append(PropertyIsLike(constraintName, constraintValue))
 
         kwa = {
             "constraints": constraints,
