@@ -321,6 +321,25 @@ class ISOReferenceDate(ISOElement):
         ),
     ]
 
+class ISOSpecification(ISOElement):
+
+    elements = [
+        ISOElement(
+            name="title",
+            search_paths=[
+                "gmd:CI_Citation/gmd:title/gco:CharacterString/text()",
+                ],
+            multiplicity="0..1",
+            ),
+        ISOReferenceDate(
+            name="date",
+            search_paths=[
+                "gmd:date/gmd:CI_Date"
+            ],
+            multiplicity="0..1",
+            )
+    ]
+
 class ISOCoupledResources(ISOElement):
 
     elements = [
@@ -474,6 +493,14 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*",
         ),
+        ISOElement(
+            name="edition",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:edition/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:edition/gco:CharacterString/text()",
+                ],
+            multiplicity="1..*",
+            ),
         ISOReferenceDate(
             name="dataset-reference-date",
             search_paths=[
@@ -482,6 +509,22 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="1..*",
         ),
+        ISOReferenceDate(
+            name="dataset-publication-date",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode[@codeListValue=\"publication\"]]",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date",
+                ],
+            multiplicity="1..*",
+            ),
+        ISOReferenceDate(
+            name="dataset-revision-date",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode[@codeListValue=\"revision\"]]",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date",
+                ],
+            multiplicity="1..*",
+            ),
         ## Todo: Suggestion from PP not to bother pulling this into the package.
         #ISOElement(
         #    name="unique-resource-identifier",
@@ -543,6 +586,14 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*",
         ),
+        ISOElement(
+            name="keyword-gemet-theme",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords[contains(gmd:thesaurusName/gmd:CI_Citation/gmd:title/gco:CharacterString/text(),'GEMET - INSPIRE')]/gmd:keyword/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString/text()",
+                ],
+            multiplicity="*",
+            ),
         ISOElement(
             name="keyword-inspire-theme",
             search_paths=[
@@ -726,7 +777,7 @@ class ISODocument(MappedXmlDocument):
                 ],
             multiplicity="*",
             ),
-        ISOElement(
+        ISOSpecification(
             name="conformity-specification",
             search_paths=[
                 "gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:report/gmd:DQ_DomainConsistency/gmd:result/gmd:DQ_ConformanceResult/gmd:specification",
