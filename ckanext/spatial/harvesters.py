@@ -923,8 +923,8 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
     def info(self):
         return {
             'name': 'csw',
-            'title': 'CSW Server',
-            'description': 'A server that implements OGC\'s Catalog Service for the Web (CSW) standard'
+            'title': 'GEMINI - CSW Server',
+            'description': 'Location/INSPIRE data residing on an OGC Catalog Service for the Web (CSW) server'
             }
 
     def gather_stage(self, harvest_job):
@@ -1045,8 +1045,8 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
     def info(self):
         return {
             'name': 'gemini-single',
-            'title': 'Single GEMINI 2 document',
-            'description': 'A single GEMINI 2.1 document'
+            'title': 'GEMINI - single file',
+            'description': 'Location/INSPIRE data as a single GEMINI 2.1 XML file'
             }
 
     def gather_stage(self,harvest_job):
@@ -1113,8 +1113,8 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
     def info(self):
         return {
             'name': 'gemini-waf',
-            'title': 'Web Accessible Folder (WAF) - GEMINI',
-            'description': 'A Web Accessible Folder (WAF) displaying a list of GEMINI 2.1 documents'
+            'title': 'GEMINI - Web Accessible Folder (WAF)',
+            'description': 'Location/INSPIRE data in a Web Accessible Folder (WAF) of GEMINI 2.1 files'
             }
 
     def gather_stage(self,harvest_job):
