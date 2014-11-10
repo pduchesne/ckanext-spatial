@@ -201,7 +201,10 @@ class SpatialHarvester(object):
             log.exception('WMS base url extraction %s failed with uncaught exception: %s' % (url, str(e)))
         return False
 
-    def _get_validator(self):
+    def _get_validator(self, harvest_object):
+        source_config = json.loads(harvest_object.source.config or '{}')
+        if source_config.get('validator_profiles'):
+            return Validators(profiles=source_config['validator_profiles'])
         if not hasattr(self, '_validator'):
             profiles = [
                 x.strip() for x in
@@ -292,7 +295,8 @@ class GeminiHarvester(SpatialHarvester):
             return False
         try:
             self.import_gemini_object(harvest_object.content,
-                                      harvest_object.harvest_source_reference)
+                                      harvest_object.harvest_source_reference,
+                                      harvest_object)
             log.info('Import completed - GUID %s', harvest_object.guid)
             return True
         except ImportAbort, e:
@@ -311,7 +315,7 @@ class GeminiHarvester(SpatialHarvester):
             if debug_exception_mode:
                 raise
 
-    def import_gemini_object(self, gemini_string, harvest_source_reference):
+    def import_gemini_object(self, gemini_string, harvest_source_reference, harvest_object):
         '''Imports the Gemini metadata into CKAN.
 
         First it does XML Validation on the gemini.
@@ -336,7 +340,7 @@ class GeminiHarvester(SpatialHarvester):
             pass
         xml = etree.fromstring(gemini_string)
 
-        valid, messages = self._get_validator().is_valid(xml)
+        valid, messages = self._get_validator(harvest_object).is_valid(xml)
         if not valid:
             reject = asbool(config.get('ckan.spatial.validator.reject', False))
             log.info('Errors found for object with GUID %s:' % self.obj.guid)
@@ -923,7 +927,8 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
         return {
             'name': 'csw',
             'title': 'GEMINI - CSW Server',
-            'description': 'Location/INSPIRE data residing on an OGC Catalog Service for the Web (CSW) server'
+            'description': 'Location/INSPIRE data residing on an OGC Catalog Service for the Web (CSW) server',
+            'form_config_interface': 'Text',
             }
 
     def gather_stage(self, harvest_job):
