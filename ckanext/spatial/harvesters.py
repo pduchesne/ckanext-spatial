@@ -124,7 +124,7 @@ class SpatialHarvester(object):
                     return False
                 except etree.XMLSyntaxError, e:
                     # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
-                    log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                    log.info('WMS check for %s failed parsing the XML response: %s', url, e)
                     return False
                 except owslib_wms.ServiceException:
                     # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
@@ -137,7 +137,7 @@ class SpatialHarvester(object):
                     tree = etree.fromstring(xml)
                 except etree.XMLSyntaxError, e:
                     # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
-                    log.info('WMS check for %s failed parsing the XML response: %s', url, traceback.format_exc())
+                    log.info('WMS check for %s failed parsing the XML response: %s', url,  e)
                     return False
                 if tree.tag != '{http://www.opengis.net/wms}WMS_Capabilities':
                     # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
@@ -587,15 +587,14 @@ class GeminiHarvester(SpatialHarvester):
                 if url:
                     resource_format = ''
                     resource = {}
-                    if extras['resource-type'] == 'service':
-                        # Check if the service is a view service
-                        is_wms = self._is_wms(url)
-                        if is_wms:
-                            resource['verified'] = True
-                            resource['verified_date'] = datetime.now().isoformat()
-                            base_urls = self._wms_base_urls(url)
-                            resource['wms_base_urls'] = ' '.join(base_urls)
-                            resource_format = 'WMS'
+                    # Check if the service is a view service
+                    is_wms = self._is_wms(url)
+                    if is_wms:
+                        resource['verified'] = True
+                        resource['verified_date'] = datetime.now().isoformat()
+                        base_urls = self._wms_base_urls(url)
+                        resource['wms_base_urls'] = ' '.join(base_urls)
+                        resource_format = 'WMS'
                     resource.update(
                         {
                             'url': url,
