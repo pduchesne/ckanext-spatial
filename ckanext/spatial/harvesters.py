@@ -1152,7 +1152,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
                 except GetContentError, e:
                     self._save_gather_error('Unable to get WAF link: %r' % e,
                                             harvest_job)
-                    return None
+                    continue
                 except Exception, e:
                     msg = 'Couldn\'t harvest WAF link: %s: %s' % (url, e)
                     self._save_gather_error(msg,harvest_job)
