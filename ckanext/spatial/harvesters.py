@@ -434,7 +434,7 @@ class GeminiHarvester(SpatialHarvester):
                     # being changed. So when it is legitimate, think of a
                     # better way to do it very consiously and with sysadmin
                     # permission.
-                    raise ImportAbort('The document with GUID %s matches a record from another publisher with a different title (%s). If you are trying to transfer a record between publishers, contact an administrator to do this.' % (gemini_guid, last_harvested_object.package.name))
+                    raise ImportAbort('The document with GUID %s matches a record from another publisher (%s). If you are trying to transfer a record between publishers, contact an administrator to do this.' % (gemini_guid, last_harvested_object.package.name))
 
             # Use metadata modified date instead of content to determine if the package
             # needs to be updated
