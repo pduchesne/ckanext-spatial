@@ -358,14 +358,13 @@ class GeminiHarvester(SpatialHarvester):
         unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
         # may raise ImportAbort for errors
-        package_dict = self.write_package_from_gemini_string(unicode_gemini_string)
+        package_dict = self.write_package_from_gemini_string(unicode_gemini_string, harvest_object)
 
         if package_dict:
             package = Session.query(Package).get(package_dict['id'])
             update_coupled_resources(package, harvest_source_reference)
 
-
-    def write_package_from_gemini_string(self, content):
+    def write_package_from_gemini_string(self, content, harvest_object):
         '''Create or update a Package based on some content (gemini_string)
         that has come from a URL.
 
@@ -406,6 +405,10 @@ class GeminiHarvester(SpatialHarvester):
             last_harvested_object = last_harvested_object[0]
         elif len(last_harvested_object) > 1:
                 raise ImportAbort('System Error: more than one current record for GUID %s' % gemini_guid)
+
+        if last_harvested_object and \
+                last_harvested_object.job == harvest_object.job:
+            raise ImportAbort('fileIdentifier "%s" is already used in this harvest - cannot import twice.' % gemini_guid)
 
         reactivate_package = False
         if last_harvested_object:
