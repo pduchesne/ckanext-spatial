@@ -954,7 +954,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
             # csw.getidentifiers may propagate exceptions like
             # URLError: <urlopen error timed out>
             # socket.timeout
-            for identifier in self.csw.getidentifiers(page=600, timeout=30):
+            for identifier in self.csw.getidentifiers(page=600, timeout=60):
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
                     if identifier in used_identifiers:
