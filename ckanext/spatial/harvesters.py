@@ -602,7 +602,7 @@ class GeminiHarvester(SpatialHarvester):
                         {
                             'url': url,
                             'name': resource_locator.get('name',''),
-                            'description': resource_locator.get('description') if resource_locator.get('description') else 'Resource locator',
+                            'description': resource_locator.get('description') or resource_locator.get('function') or 'Resource locator',
                             'format': resource_format or None,
                             'resource_locator_protocol': resource_locator.get('protocol',''),
                             'resource_locator_function':resource_locator.get('function','')
@@ -954,7 +954,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
             # csw.getidentifiers may propagate exceptions like
             # URLError: <urlopen error timed out>
             # socket.timeout
-            for identifier in self.csw.getidentifiers(page=10):
+            for identifier in self.csw.getidentifiers(page=25):
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
                     if identifier in used_identifiers:
