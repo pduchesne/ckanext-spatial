@@ -273,6 +273,7 @@ class GeminiHarvester(SpatialHarvester):
     All three harvesters share the same import stage
     '''
 
+    # force_import is set when there is a reimport (harvest_objects_import')
     force_import = False
 
     extent_template = Template('''
@@ -407,7 +408,8 @@ class GeminiHarvester(SpatialHarvester):
                 raise ImportAbort('System Error: more than one current record for GUID %s' % gemini_guid)
 
         if last_harvested_object and \
-                last_harvested_object.job == harvest_object.job:
+                last_harvested_object.job == harvest_object.job and\
+                not self.force_import:
             raise ImportAbort('fileIdentifier "%s" is already used in this harvest - cannot import twice.' % gemini_guid)
 
         reactivate_package = False
