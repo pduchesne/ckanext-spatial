@@ -401,6 +401,9 @@ class GeminiHarvester(SpatialHarvester):
                             .filter(HarvestObject.guid==gemini_guid) \
                             .filter(HarvestObject.current==True) \
                             .all()
+        # NB last_harvested_object is the last SUCCESSFUL harvest. It ignores
+        # more recent harvest_objects that where skipped/errored before the
+        # HarvestObject got set as current.
 
         if len(last_harvested_object) == 1:
             last_harvested_object = last_harvested_object[0]
@@ -1068,7 +1071,7 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
 
         # Get contents
         try:
-            content, url = self._get_content(url)
+            content, url_ = self._get_content(url)
         except GetContentError, e:
             self._save_gather_error('Unable to get document: %r' % e,
                                     harvest_job)
@@ -1079,7 +1082,7 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
             return None
         try:
             # We need to extract the guid to pass it to the next stage
-            gemini_string, gemini_guid = self.get_gemini_string_and_guid(content,url)
+            gemini_string, gemini_guid = self.get_gemini_string_and_guid(content, url)
 
             if gemini_guid:
                 # Create a new HarvestObject for this identifier.
@@ -1139,7 +1142,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
 
         # Get contents
         try:
-            content, url = self._get_content(url)
+            content, url_ = self._get_content(url)
         except GetContentError, e:
             self._save_gather_error('Unable to get WAF content: %r' % e,
                                     harvest_job)
@@ -1153,7 +1156,7 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
         try:
             for url in self._extract_urls(content, url, log):
                 try:
-                    content, url = self._get_content(url)
+                    content, url_ = self._get_content(url)
                 except GetContentError, e:
                     self._save_gather_error('Unable to get WAF link: %r' % e,
                                             harvest_job)
@@ -1181,7 +1184,6 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
                             obj.save()
 
                             ids.append(obj.id)
-
 
                     except Exception, e:
                         msg = 'Could not get GUID for source %s: %r' % (url,e)

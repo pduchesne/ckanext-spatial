@@ -50,7 +50,7 @@ def extract_harvest_source_reference_from_coupled_resource(coupled_resource_dict
     May raise CoupledResourceParseError.
     '''
     href = coupled_resource_dict['href']
-    if len(href) <> 1:
+    if len(href) != 1:
         raise CoupledResourceParseError('Coupled resource href is not a list of 1: %r' % href)
     href = href[0]
     if not href.strip():
@@ -59,7 +59,7 @@ def extract_harvest_source_reference_from_coupled_resource(coupled_resource_dict
     if not ref:
         raise CoupledResourceParseError('Coupled resource harvest source reference is blank')
     return ref
-        
+
 def _package_name(package_or_none):
     return package_or_none.name if package_or_none else None
 
