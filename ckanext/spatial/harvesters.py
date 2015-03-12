@@ -251,7 +251,6 @@ class SpatialHarvester(object):
 
         May raise GetContentError.
         '''
-        url = url.replace(' ','%20')
         try:
             http_response = urllib2.urlopen(url)
         except urllib2.HTTPError, e:
@@ -1071,7 +1070,7 @@ class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
 
         # Get contents
         try:
-            content, url_ = self._get_content(url)
+            content, url = self._get_content(url)
         except GetContentError, e:
             self._save_gather_error('Unable to get document: %r' % e,
                                     harvest_job)
@@ -1137,26 +1136,33 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
 
         # Get source URL
         Session.refresh(harvest_job.source) # in case the url has recently changed
-        url = harvest_job.source.url
-        log.debug('WAF URL: %r', url)
+        waf_url = harvest_job.source.url
+        log.debug('WAF URL: %r', waf_url)
 
         # Get contents
         try:
-            content, url_ = self._get_content(url)
+            content, waf_url = self._get_content(waf_url)
         except GetContentError, e:
             self._save_gather_error('Unable to get WAF content: %r' % e,
                                     harvest_job)
             return None
         except Exception,e:
             self._save_gather_error('Unable to get WAF content at URL: %s: %r' % \
-                                        (url, e),harvest_job)
+                                        (waf_url, e),harvest_job)
             return None
 
         ids = []
         try:
-            for url in self._extract_urls(content, url, log):
+            # NB: the waf_url used here should be the one *returned* by
+            # get_content.  This is because in cases when the user provides a
+            # WAF url like "/folder" then get_content will redirect and return
+            # "/folder/", which is the correct base_url for the contents of the
+            # directory.  Whereas the original url "/folder" will give the
+            # wrong base_url "/".
+            # e.g. http://inspire.misoportal.com/metadata/files/westminster
+            for url in self._extract_urls(content, waf_url, log):
                 try:
-                    content, url_ = self._get_content(url)
+                    content, url = self._get_content(url)
                 except GetContentError, e:
                     self._save_gather_error('Unable to get WAF link: %r' % e,
                                             harvest_job)
@@ -1190,12 +1196,12 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
                         self._save_gather_error(msg,harvest_job)
                         continue
         except GatherError, e:
-            msg = 'Error extracting URLs from %s' % url
+            msg = 'Error extracting URLs from %s' % waf_url
             self._save_gather_error(msg,harvest_job)
             return None
         except Exception, e:
-            log.error('System error extracting URLs from %s: %s', url, text_traceback())
-            msg = 'System Error extracting URLs from %s' % url
+            log.error('System error extracting URLs from %s: %s', waf_url, text_traceback())
+            msg = 'System Error extracting URLs from %s' % waf_url
             self._save_gather_error(msg,harvest_job)
             return None
 
