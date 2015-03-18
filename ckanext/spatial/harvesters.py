@@ -422,7 +422,8 @@ class GeminiHarvester(SpatialHarvester):
             # Special case - when a record moves from one publisher to another
             has_publisher_changed = (last_harvested_object.package.owner_org !=
                                      self.obj.source.publisher_id)
-            if has_publisher_changed:
+            if has_publisher_changed and \
+                    last_harvested_object.package.state != 'deleted':
                 has_title_changed = (last_harvested_object.package.title !=
                                      gemini_values['title'])
                 if has_title_changed:
