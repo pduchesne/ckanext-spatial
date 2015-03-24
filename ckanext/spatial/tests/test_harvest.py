@@ -1066,7 +1066,6 @@ class TestImportStageTools:
                      ('', []))
 
     def test_licence_just_free_text(self):
-        # no owner or publisher, so blank provider
         gemini = {'use_constraints': ['License available'],
                   'anchor_href': None,
                   'anchor_title': None}
@@ -1074,7 +1073,6 @@ class TestImportStageTools:
                      ({'licence': ['License available']}))
 
     def test_licence_free_text_and_url(self):
-        # no owner or publisher, so blank provider
         gemini = {'use_constraints': ['License available', 'Good',
                                       'http://license.com/terms.html'],
                   'anchor_href': None,
@@ -1084,7 +1082,6 @@ class TestImportStageTools:
                        'licence_url': 'http://license.com/terms.html'}))
 
     def test_licence_multiple_urls(self):
-        # no owner or publisher, so blank provider
         gemini = {'use_constraints': ['License available', 'Good',
                                       'http://license.com/terms1.html',
                                       'http://license.com/terms2.html'],
@@ -1096,7 +1093,6 @@ class TestImportStageTools:
                        'licence_url': 'http://license.com/terms1.html'}))
 
     def test_licence_anchor_url(self):
-        # no owner or publisher, so blank provider
         gemini = {'use_constraints': ['License available', 'Good',
                                       'http://license.com/terms1.html',
                                       'http://license.com/terms2.html'],
@@ -1109,7 +1105,6 @@ class TestImportStageTools:
                        'licence_url': 'http://license.com/terms.html'}))
 
     def test_licence_anchor(self):
-        # no owner or publisher, so blank provider
         gemini = {'use_constraints': ['License available', 'Good',
                                       'http://license.com/terms1.html',
                                       'http://license.com/terms2.html'],
@@ -1121,6 +1116,16 @@ class TestImportStageTools:
                                    'http://license.com/terms2.html'],
                        'licence_url': 'http://license.com/terms.html',
                        'licence_url_title': 'The terms'}))
+
+    def test_licence_anchor2(self):
+        # This is how the locationmde.data.gov.uk puts it if there is text and
+        # a URL
+        gemini = {'use_constraints': [],
+                  'anchor_href': 'http://license.com/terms.html',
+                  'anchor_title': 'The terms'}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['The terms'],
+                       'licence_url': 'http://license.com/terms.html'}))
 
 class TestValidation(HarvestFixtureBase):
 

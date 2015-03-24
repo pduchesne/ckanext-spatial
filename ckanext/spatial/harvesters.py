@@ -120,7 +120,7 @@ class SpatialHarvester(object):
                     wms = owslib_wms.WebMapService(url, xml=xml)
                 except AttributeError, e:
                     # e.g. http://csw.data.gov.uk/geonetwork/srv/en/csw
-                    log.info('WMS check for %s failed due to GetCapabilities response not containing a required field: %s', url, traceback.format_exc())
+                    log.info('WMS check for %s failed due to GetCapabilities response not containing a required field', url)
                     return False
                 except etree.XMLSyntaxError, e:
                     # e.g. http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/
@@ -490,10 +490,15 @@ class GeminiHarvester(SpatialHarvester):
             'metadata-date': metadata_modified_date.strftime('%Y-%m-%d'),
         }
 
-        # Bring forward extras which may be manually edited
+        # Bring forward extras from the existing package which are edited
+        # outside harvesting and should not be overwritten
         if package:
-            for extra_key in ('theme-primary', 'themes-secondary'):
-                extras[extra_key] = package.extras.get(extra_key)
+            extras_kept = set(
+                config.get('ckan.harvest.extras_not_overwritten', '')
+                .split(' '))
+            for extra_key in extras_kept:
+                if extra_key in package.extras:
+                    extras[extra_key] = package.extras.get(extra_key)
 
         # Just add some of the metadata as extras, not the whole lot
         for name in [
@@ -633,7 +638,7 @@ class GeminiHarvester(SpatialHarvester):
             log.debug('%s given themes: %r', name, themes)
             if themes:
                 extras[PRIMARY_THEME] = themes[0]
-                extras[SECONDARY_THEMES] = themes[1:]
+                extras[SECONDARY_THEMES] = json.dumps(themes[1:])
         except ImportError:
             pass
 
@@ -745,6 +750,11 @@ class GeminiHarvester(SpatialHarvester):
 
         free_text = []
         urls = []
+        if anchor_title and not use_constraints:
+            # it is better to have it in the licence extra than
+            # licence_url_title and we don't want it repeated
+            use_constraints = [anchor_title]
+            anchor_title = None
         if anchor_href:
             if anchor_title:
                 urls.append((anchor_href, anchor_title))
