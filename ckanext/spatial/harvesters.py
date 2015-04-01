@@ -297,7 +297,7 @@ class GeminiHarvester(SpatialHarvester):
             self.import_gemini_object(harvest_object.content,
                                       harvest_object.harvest_source_reference,
                                       harvest_object)
-            log.info('Import completed - GUID %s', harvest_object.guid)
+            log.info('Import stage completed - GUID %s', harvest_object.guid)
             return True
         except ImportAbort, e:
             log.info('Import error: %s', text_traceback())
@@ -477,7 +477,7 @@ class GeminiHarvester(SpatialHarvester):
                     raise ImportAbort('The contents of document with GUID %s changed, but the metadata date has not been updated.\nDiff:\n%s' % (gemini_guid, diff))
                 else:
                     # The content hasn't changed, no need to update the package
-                    log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
+                    log.info('Skipping unchanged record GUID %s' % gemini_guid)
                 return None
         else:
             log.info('No package with GEMINI guid %s found, let\'s create one' % gemini_guid)
