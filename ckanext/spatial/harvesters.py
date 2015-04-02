@@ -539,10 +539,22 @@ class GeminiHarvester(SpatialHarvester):
             extras['temporal_coverage-to'] = gemini_values['temporal-extent-end']
 
         # Save responsible organization roles
-        provider, responsible_parties = self._process_responsible_organisation(
-            gemini_values['responsible-organisation'])
+        provider, responsible_parties, responsible_parties_without_roles = \
+            self._process_responsible_organisation(
+                gemini_values['responsible-organisation'])
         extras['provider'] = provider
         extras['responsible-party'] = '; '.join(responsible_parties)
+        source_config = json.loads(harvest_object.source.config or '{}')
+        if source_config.get('skip-responsible-party') and \
+                responsible_parties_without_roles:
+            to_skip = source_config['skip-responsible-party']
+            if isinstance(to_skip, basestring):
+                to_skip = [to_skip]
+            to_skip_and_found = set(to_skip) & set(responsible_parties_without_roles)
+            if to_skip_and_found:
+                log.info('Skipping due to repsonsible parties: %r (GUID %s)',
+                         to_skip_and_found, gemini_guid)
+                return None
 
         # Construct a GeoJSON extent so ckanext-spatial can register the extent geometry
         extent_string = self.extent_template.substitute(
@@ -696,6 +708,7 @@ class GeminiHarvester(SpatialHarvester):
                       includeing 'organisation-name' and 'role'
         :returns: tuple of: 'provider' (string, may be empty) and
                   'responsible-parties' (list of strings)
+                  'responsible-parties-without-roles' (list of strings)
         '''
         parties = {}
         owners = []
@@ -713,8 +726,10 @@ class GeminiHarvester(SpatialHarvester):
                 parties[responsible_party['organisation-name']] = [responsible_party['role']]
 
         responsible_parties = []
+        responsible_parties_without_roles = []
         for party_name in parties:
             responsible_parties.append('%s (%s)' % (party_name, ', '.join(parties[party_name])))
+            responsible_parties_without_roles.append('%s' % (party_name))
 
         # Save provider in a separate extra:
         # first organization to have a role of 'owner', and if there is none, first one with
@@ -726,7 +741,7 @@ class GeminiHarvester(SpatialHarvester):
         else:
             provider = u''
 
-        return provider, responsible_parties
+        return provider, responsible_parties, responsible_parties_without_roles
 
     @classmethod
     def _process_licence(cls, use_constraints, anchor_href, anchor_title):
