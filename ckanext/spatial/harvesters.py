@@ -280,6 +280,11 @@ class GeminiHarvester(SpatialHarvester):
     ''')
 
     def import_stage(self, harvest_object):
+        '''
+        Import ok - return True & harvest_object.current = True
+        Skip - return True & harvest_object.current = False
+        Error - return False
+        '''
         log = logging.getLogger(__name__ + '.import')
         log.debug('Import stage for harvest object: %r', harvest_object)
 
@@ -324,6 +329,8 @@ class GeminiHarvester(SpatialHarvester):
         for the metadata document. It is the same ID the Coupled Resources
         use to link dataset and service records.
 
+        Successful imports set harvest_object.current=True
+        Skipped imports leave harvest_object.current=False
         Non-fatal errors are recorded with _save_object_error().
         Fatal errors raise an ImportAbort.
         '''
@@ -369,7 +376,9 @@ class GeminiHarvester(SpatialHarvester):
         that has come from a URL.
 
         Returns the package_dict of the result.
-        If there is an error, it returns None or raises ImportAbort.
+        If there is an error, it raises ImportAbort.
+        If it chooses to skip the import it returns None, with
+        harvest_object.current=False
         '''
         log = logging.getLogger(__name__ + '.import')
         package = None
@@ -395,6 +404,42 @@ class GeminiHarvester(SpatialHarvester):
 
         self.obj.metadata_modified_date = metadata_modified_date
         self.obj.save()
+
+        extras = {
+            'UKLP': 'True',
+            'import_source': 'harvest',
+            'harvest_object_id': self.obj.id,
+            'harvest_source_reference': self.obj.harvest_source_reference,
+            'metadata-date': metadata_modified_date.strftime('%Y-%m-%d'),
+        }
+
+        # Bring forward extras from the existing package which are edited
+        # outside harvesting and should not be overwritten
+        if package:
+            extras_kept = set(
+                config.get('ckan.harvest.extras_not_overwritten', '')
+                .split(' '))
+            for extra_key in extras_kept:
+                if extra_key in package.extras:
+                    extras[extra_key] = package.extras.get(extra_key)
+
+        # Responsible organization roles
+        provider, responsible_parties, responsible_parties_without_roles = \
+            self._process_responsible_organisation(
+                gemini_values['responsible-organisation'])
+        extras['provider'] = provider
+        extras['responsible-party'] = '; '.join(responsible_parties)
+        source_config = json.loads(harvest_object.source.config or '{}')
+        if source_config.get('skip-responsible-party') and \
+                responsible_parties_without_roles:
+            to_skip = source_config['skip-responsible-party']
+            if isinstance(to_skip, basestring):
+                to_skip = [to_skip]
+            to_skip_and_found = set(to_skip) & set(responsible_parties_without_roles)
+            if to_skip_and_found:
+                log.info('Skipping due to responsible parties: %r (GUID %s)',
+                         to_skip_and_found, gemini_guid)
+                return None
 
         last_harvested_object = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==gemini_guid) \
@@ -482,24 +527,6 @@ class GeminiHarvester(SpatialHarvester):
         else:
             log.info('No package with GEMINI guid %s found, let\'s create one' % gemini_guid)
 
-        extras = {
-            'UKLP': 'True',
-            'import_source': 'harvest',
-            'harvest_object_id': self.obj.id,
-            'harvest_source_reference': self.obj.harvest_source_reference,
-            'metadata-date': metadata_modified_date.strftime('%Y-%m-%d'),
-        }
-
-        # Bring forward extras from the existing package which are edited
-        # outside harvesting and should not be overwritten
-        if package:
-            extras_kept = set(
-                config.get('ckan.harvest.extras_not_overwritten', '')
-                .split(' '))
-            for extra_key in extras_kept:
-                if extra_key in package.extras:
-                    extras[extra_key] = package.extras.get(extra_key)
-
         # Just add some of the metadata as extras, not the whole lot
         for name in [
             # Essentials
@@ -537,24 +564,6 @@ class GeminiHarvester(SpatialHarvester):
         if gemini_values.has_key('temporal-extent-end'):
             #gemini_values['temporal-extent-end'].sort()
             extras['temporal_coverage-to'] = gemini_values['temporal-extent-end']
-
-        # Save responsible organization roles
-        provider, responsible_parties, responsible_parties_without_roles = \
-            self._process_responsible_organisation(
-                gemini_values['responsible-organisation'])
-        extras['provider'] = provider
-        extras['responsible-party'] = '; '.join(responsible_parties)
-        source_config = json.loads(harvest_object.source.config or '{}')
-        if source_config.get('skip-responsible-party') and \
-                responsible_parties_without_roles:
-            to_skip = source_config['skip-responsible-party']
-            if isinstance(to_skip, basestring):
-                to_skip = [to_skip]
-            to_skip_and_found = set(to_skip) & set(responsible_parties_without_roles)
-            if to_skip_and_found:
-                log.info('Skipping due to repsonsible parties: %r (GUID %s)',
-                         to_skip_and_found, gemini_guid)
-                return None
 
         # Construct a GeoJSON extent so ckanext-spatial can register the extent geometry
         extent_string = self.extent_template.substitute(
@@ -670,6 +679,10 @@ class GeminiHarvester(SpatialHarvester):
         else:
             package = self._create_package_from_data(package_dict, package = package)
             log.info('Updated existing package ID %s with existing GEMINI guid %s', package['id'], gemini_guid)
+
+        # Import is successful - move the 'current' flag onto this harvest_object.
+        # (This is the last thing that should be done, as 'current' is only
+        # applied to successful harvests.)
 
         # Flag the other objects of this source as not current anymore
         from ckanext.harvest.model import harvest_object_table
