@@ -1,12 +1,14 @@
 import os
+import json
 
 from nose.tools import assert_equal
 
 from ckanext.spatial.model import GeminiDocument
 
+
 def open_xml_fixture(xml_filename):
     xml_filepath = os.path.join(os.path.dirname(__file__),
-                                'xml',
+                                'metadata',
                                 xml_filename)
     with open(xml_filepath, 'rb') as f:
         xml_string_raw = f.read()
@@ -15,8 +17,17 @@ def open_xml_fixture(xml_filename):
         xml_string = xml_string_raw.encode("utf-8")
     except UnicodeDecodeError, e:
         assert 0, 'ERROR: Unicode Error reading file \'%s\': %s' % \
-               (metadata_filepath, e)
+               (xml_filepath, e)
     return xml_string
+
+
+def open_json_fixture(filename):
+    filepath = os.path.join(os.path.dirname(__file__),
+                            'metadata',
+                            filename)
+    with open(filepath, 'rb') as f:
+        return json.loads(f.read())
+
 
 def test_simple():
     xml_string = open_xml_fixture('gemini_dataset.xml')
@@ -38,7 +49,7 @@ class TestUseConstraints:
     def setup_class(cls):
         xml_string = open_xml_fixture('gemini_dataset.xml')
         cls.gemini_document = GeminiDocument(xml_string)
-        
+
     def test_strings(self):
         gemini_value = self.gemini_document.read_value('use-constraints')
         expected_constraints = ['Reference and PSMA Only',
@@ -55,3 +66,18 @@ class TestUseConstraints:
         gemini_value = self.gemini_document.read_value('use-constraints-anchor-href')
         expected_constraints = 'http://www.ordnancesurvey.co.uk/docs/licences/os-opendata-licence.pdf'
         assert_equal(set(gemini_value), set(expected_constraints))
+
+
+class TestAllFields:
+    @classmethod
+    def setup_class(cls):
+        xml_string = open_xml_fixture('gemini_dataset.xml')
+        cls.gemini_document = GeminiDocument(xml_string)
+
+    def test_all_fields(self):
+        gemini_values = self.gemini_document.read_values()
+        print json.dumps(gemini_values, sort_keys=True,
+                         indent=4, separators=(',', ': '))
+        expected_gemini_values = open_json_fixture('gemini_dataset.json')
+        assert_equal(gemini_values, expected_gemini_values)
+
