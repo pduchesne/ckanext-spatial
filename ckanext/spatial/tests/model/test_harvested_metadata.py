@@ -26,8 +26,35 @@ def open_json_fixture(filename):
                             'metadata',
                             filename)
     with open(filepath, 'rb') as f:
-        return json.loads(f.read())
+        return json.loads(f.read(), object_hook=_decode_dict)
 
+def _decode_list(data):
+    # treat json strings as bytestrings, not unicode
+    rv = []
+    for item in data:
+        if isinstance(item, unicode):
+            item = item.encode('utf-8')
+        elif isinstance(item, list):
+            item = _decode_list(item)
+        elif isinstance(item, dict):
+            item = _decode_dict(item)
+        rv.append(item)
+    return rv
+
+def _decode_dict(data):
+    # treat json strings as bytestrings, not unicode
+    rv = {}
+    for key, value in data.iteritems():
+        if isinstance(key, unicode):
+            key = key.encode('utf-8')
+        if isinstance(value, unicode):
+            value = value.encode('utf-8')
+        elif isinstance(value, list):
+            value = _decode_list(value)
+        elif isinstance(value, dict):
+            value = _decode_dict(value)
+        rv[key] = value
+    return rv
 
 def test_simple():
     xml_string = open_xml_fixture('gemini_dataset.xml')
@@ -79,5 +106,5 @@ class TestAllFields:
         print json.dumps(gemini_values, sort_keys=True,
                          indent=4, separators=(',', ': '))
         expected_gemini_values = open_json_fixture('gemini_dataset.json')
-        assert_equal(gemini_values, expected_gemini_values)
-
+        assert_equal.__self__.maxDiff = None
+        assert_equal(expected_gemini_values, gemini_values)

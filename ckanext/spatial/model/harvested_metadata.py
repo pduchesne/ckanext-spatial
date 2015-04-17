@@ -555,7 +555,17 @@ class ISODocument(MappedXmlDocument):
                 "gmd:language/gmd:LanguageCode/@codeListValue",
                 "gmd:language/gmd:LanguageCode/text()",
             ],
-            multiplicity="1",
+            multiplicity="0..1",
+        ),
+        ISOElement(
+            name="metadata-standard-name",
+            search_paths="gmd:metadataStandardName/gco:CharacterString/text()",
+            multiplicity="0..1",
+        ),
+        ISOElement(
+            name="metadata-standard-version",
+            search_paths="gmd:metadataStandardVersion/gco:CharacterString/text()",
+            multiplicity="0..1",
         ),
         ISOElement(
             name="resource-type",
@@ -563,9 +573,9 @@ class ISODocument(MappedXmlDocument):
                 "gmd:hierarchyLevel/gmd:MD_ScopeCode/@codeListValue",
                 "gmd:hierarchyLevel/gmd:MD_ScopeCode/text()",
             ],
-            multiplicity="1",
+            multiplicity="*",
         ),
-        GeminiResponsibleParty(
+        ISOResponsibleParty(
             name="metadata-point-of-contact",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
@@ -597,30 +607,40 @@ class ISODocument(MappedXmlDocument):
             multiplicity="1",
         ),
         ISOElement(
-            name="alternative-title",
+            name="alternate-title",
             search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:alternativeTitle/gco:CharacterString/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:alternativeTitle/gco:CharacterString/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:alternateTitle/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:alternateTitle/gco:CharacterString/text()",
             ],
             multiplicity="*",
         ),
-        GeminiReferenceDate(
+        ISOReferenceDate(
             name="dataset-reference-date",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date",
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date",
             ],
+            multiplicity="1..*",
+        ),
+        ISOElement(
+            name="unique-resource-identifier",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",
+                "gmd:identificationInfo/gmd:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",
+            ],
+            multiplicity="0..1",
+        ),
+        ISOElement(
+            name="presentation-form",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:presentationForm/gmd:CI_PresentationFormCode/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:presentationForm/gmd:CI_PresentationFormCode/@codeListValue",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:presentationForm/gmd:CI_PresentationFormCode/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:presentationForm/gmd:CI_PresentationFormCode/@codeListValue",
+
+            ],
             multiplicity="*",
         ),
-        ## Todo: Suggestion from PP not to bother pulling this into the package.
-        #ISOElement(
-        #    name="unique-resource-identifier",
-        #    search_paths=[
-        #        "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier",
-        #        "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier",
-        #    ],
-        #    multiplicity="1",
-        #),
         ISOElement(
             name="abstract",
             search_paths=[
@@ -629,7 +649,15 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="1",
         ),
-        GeminiResponsibleParty(
+        ISOElement(
+            name="purpose",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:purpose/gco:CharacterString/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:purpose/gco:CharacterString/text()",
+            ],
+            multiplicity="0..1",
+        ),
+        ISOResponsibleParty(
             name="responsible-organisation",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
@@ -643,11 +671,36 @@ class ISODocument(MappedXmlDocument):
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",
-
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/text()",
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/text()",
             ],
             multiplicity="0..1",
+        ),
+        ISOElement(
+            name="maintenance-note",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceNote/gco:CharacterString/text()",
+                "gmd:identificationInfo/gmd:SV_ServiceIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceNote/gco:CharacterString/text()",
+            ],
+            multiplicity="0..1",
+        ),
+        ISOElement(
+            name="progress",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:status/gmd:MD_ProgressCode/@codeListValue",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:status/gmd:MD_ProgressCode/@codeListValue",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:status/gmd:MD_ProgressCode/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:status/gmd:MD_ProgressCode/text()",
+            ],
+            multiplicity="*",
+        ),
+        ISOKeyword(
+            name="keywords",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords",
+            ],
+            multiplicity="*"
         ),
         ISOElement(
             name="keyword-inspire-theme",
@@ -657,20 +710,21 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*",
         ),
+        # Deprecated: kept for backwards compatibilty
         ISOElement(
             name="keyword-controlled-other",
             search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString/text()",
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:keywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString/text()",
             ],
             multiplicity="*",
         ),
-        ISOElement(
-            name="keyword-free-text",
+        ISOUsage(
+            name="usage",
             search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceSpecificUsage/gmd:MD_Usage",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceSpecificUsage/gmd:MD_Usage",
             ],
-            multiplicity="*",
+            multiplicity="*"
         ),
         ISOElement(
             name="limitations-on-public-access",
@@ -678,43 +732,34 @@ class ISODocument(MappedXmlDocument):
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints/gco:CharacterString/text()",
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints/gco:CharacterString/text()",
             ],
-            multiplicity="1..*",
+            multiplicity="*",
         ),
+        ISOElement(
+            name="access-constraints",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:accessConstraints/gmd:MD_RestrictionCode/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:accessConstraints/gmd:MD_RestrictionCode/text()",
+            ],
+            multiplicity="*",
+        ),
+
         ISOElement(
             name="use-constraints",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gco:CharacterString/text()",
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue",
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gco:CharacterString/text()",
-                \
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gco:CharacterString/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gco:CharacterString/text()",
             ],
-            paths_aggregate=True,
             multiplicity="*",
         ),
-        ISOElement(
-            name="use-constraints-anchor-title",
+        ISOAggregationInfo(
+            name="aggregation-info",
             search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/text()",
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/text()",
-                \
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:aggregationInfo/gmd:MD_AggregateInformation",
+                "gmd:identificationInfo/gmd:SV_ServiceIdentification/gmd:aggregationInfo/gmd:MD_AggregateInformation",
             ],
-            multiplicity="0..1",
-        ),
-        ISOElement(
-            name="use-constraints-anchor-href",
-            search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
-                \
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_Constraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gmx:Anchor/@xlink:href",
-            ],
-            multiplicity="0..1",
+            multiplicity="*"
         ),
         ISOElement(
             name="spatial-data-service-type",
@@ -731,14 +776,14 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="0..1",
         ),
-        #ISOElement(
-        #    name="spatial-resolution-units",
-        #    search_paths=[
-        #        "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance/@uom",
-        #        "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance/@uom",
-        #    ],
-        #    multiplicity="0..1",
-        #),
+        ISOElement(
+            name="spatial-resolution-units",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance/@uom",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance/@uom",
+            ],
+            multiplicity="0..1",
+        ),
         ISOElement(
             name="equivalent-scale",
             search_paths=[
@@ -779,37 +824,13 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*",
         ),
-        ISOElement(
-            name="bbox-west-long",
+        ISOBoundingBox(
+            name="bbox",
             search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:westBoundLongitude/gco:Decimal/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:westBoundLongitude/gco:Decimal/text()",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox",
             ],
-            multiplicity="1",
-        ),
-        ISOElement(
-            name="bbox-east-long",
-            search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:eastBoundLongitude/gco:Decimal/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:eastBoundLongitude/gco:Decimal/text()",
-            ],
-            multiplicity="1",
-        ),
-        ISOElement(
-            name="bbox-north-lat",
-            search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:northBoundLatitude/gco:Decimal/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:northBoundLatitude/gco:Decimal/text()",
-            ],
-            multiplicity="1",
-        ),
-        ISOElement(
-            name="bbox-south-lat",
-            search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:southBoundLatitude/gco:Decimal/text()",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox/gmd:southBoundLatitude/gco:Decimal/text()",
-            ],
-            multiplicity="1",
+            multiplicity="*",
         ),
         ISOElement(
             name="temporal-extent-begin",
@@ -835,20 +856,13 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="*",
         ),
-        GeminiCoupledResources(
+        ISOCoupledResources(
             name="coupled-resource",
             search_paths=[
                 "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn",
             ],
             multiplicity="*",
         ),
-#        ISOElement(
-#            name="coupled-resource",
-#            search_paths=[
-#                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn/@xlink:href",
-#            ],
-#            multiplicity="*",
-#        ),
         ISOElement(
             name="additional-information-source",
             search_paths=[
@@ -856,17 +870,32 @@ class ISODocument(MappedXmlDocument):
             ],
             multiplicity="0..1",
         ),
-        GeminiDataFormat(
+        ISODataFormat(
             name="data-format",
             search_paths=[
                 "gmd:distributionInfo/gmd:MD_Distribution/gmd:distributionFormat/gmd:MD_Format",
             ],
             multiplicity="*",
         ),
-        GeminiResourceLocator(
+        ISOResponsibleParty(
+            name="distributor",
+            search_paths=[
+                "gmd:distributionInfo/gmd:MD_Distribution/gmd:distributor/gmd:MD_Distributor/gmd:distributorContact/gmd:CI_ResponsibleParty",
+            ],
+            multiplicity="*",
+        ),
+        ISOResourceLocator(
             name="resource-locator",
             search_paths=[
                 "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource",
+                "gmd:distributionInfo/gmd:MD_Distribution/gmd:distributor/gmd:MD_Distributor/gmd:distributorTransferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource"
+            ],
+            multiplicity="*",
+        ),
+        ISOResourceLocator(
+            name="resource-locator-identification",
+            search_paths=[
+                "gmd:identificationInfo//gmd:CI_OnlineResource",
             ],
             multiplicity="*",
         ),
@@ -897,7 +926,16 @@ class ISODocument(MappedXmlDocument):
                 "gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:statement/gco:CharacterString/text()",
             ],
             multiplicity="0..1",
-        )
+        ),
+        ISOBrowseGraphic(
+            name="browse-graphic",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:graphicOverview/gmd:MD_BrowseGraphic",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:graphicOverview/gmd:MD_BrowseGraphic",
+            ],
+            multiplicity="*",
+        ),
+
     ]
 
     def infer_values(self, values):
@@ -1000,7 +1038,8 @@ class GeminiDocument(ISODocument):
                         'progress', 'keywords', 'usage', 'access-constraints',
                         'aggregation-info',
                         'spatial-resolution-units', 'bbox',
-                        'distributor', 'browse-graphic',
+                        'distributor', 'resource-locator-identification',
+                        'browse-graphic',
                         )
         for element in copy.deepcopy(ISODocument.elements):
             if element.name == 'metadata-language':
@@ -1014,6 +1053,11 @@ class GeminiDocument(ISODocument):
                     name=element.name,
                     search_paths=element.search_paths,
                     multiplicity=element.multiplicity)
+            elif element.name == 'responsible-organisation':
+                element = GeminiResponsibleParty(
+                    name=element.name,
+                    search_paths=element.search_paths,
+                    multiplicity=element.multiplicity)
             elif element.name == 'alternate-title':
                 element = ISOElement(
                     name="alternative-title",
@@ -1022,7 +1066,7 @@ class GeminiDocument(ISODocument):
                         "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:alternativeTitle/gco:CharacterString/text()",
                     ],
                     multiplicity="*",
-                ),
+                )
             elif element.name == 'dataset-reference-date':
                 element = GeminiReferenceDate(
                     name=element.name,
