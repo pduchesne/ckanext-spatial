@@ -726,8 +726,8 @@ class ISODocument(MappedXmlDocument):
         ISOElement(
             name="spatial-resolution",
             search_paths=[
-                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance",
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance",
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance/text()",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance/text()",
             ],
             multiplicity="0..1",
         ),
@@ -998,7 +998,7 @@ class GeminiDocument(ISODocument):
                         'metadata-standard-version', 'unique-resource-identifier',
                         'presentation-form', 'purpose', 'maintenance-note',
                         'progress', 'keywords', 'usage', 'access-constraints',
-                        'aggregation-info', 'spatial-resolution',
+                        'aggregation-info',
                         'spatial-resolution-units', 'bbox',
                         'distributor', 'browse-graphic',
                         )
