@@ -98,6 +98,8 @@ class SpatialHarvester(object):
 
     @classmethod
     def _try_wms_url(cls, url, version='1.3'):
+        # Here's a neat way to run this manually:
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._try_wms_url('http://soilbio.nerc.ac.uk/datadiscovery/WebPage5.aspx')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader(version=version).capabilities_url(url)
             log.debug('WMS check url: %s', capabilities_url)
@@ -109,6 +111,9 @@ class SpatialHarvester(object):
                 return False
             except urllib2.URLError, e:
                 log.info('WMS check for %s failed due to HTTP connection error "%s".', capabilities_url, e)
+                return False
+            except socket.timeout, e:
+                log.info('WMS check for %s failed due to HTTP connection timeout error "%s".', capabilities_url, e)
                 return False
             xml = res.read()
             if not xml.strip():
@@ -160,7 +165,7 @@ class SpatialHarvester(object):
         it by making basic WMS requests.
         '''
         # Here's a neat way to test this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
             # Get rid of the "version=1.1.1" param that OWSLIB adds, because
