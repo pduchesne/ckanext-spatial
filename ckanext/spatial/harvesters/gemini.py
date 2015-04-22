@@ -1,14 +1,14 @@
 '''
 Different harvesters for spatial metadata
 
-These are designed for harvesting GEMINI2 for the UK Location Programme
-but can be easily adapted for other INSPIRE/ISO19139 XML metadata
+These are designed for harvesting GEMINI2 for the UK Location Programme.
+
     - GeminiCswHarvester - CSW servers
     - GeminiDocHarvester - An individual GEMINI resource
     - GeminiWafHarvester - An index page with links to GEMINI resources
 
-TODO: Harvesters for generic INSPIRE CSW servers
-
+For metadata that is pure ISO19139 or INSPIRE (outside of the UK) we suggest
+you use alternative harvesters in this directory, such as CSWHarvester.
 '''
 import warnings
 import urllib2
@@ -1310,5 +1310,3 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
             urls.append(url)
         base_url = cls._get_base_url(index_url)
         return [base_url + i for i in urls]
-
-
