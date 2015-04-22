@@ -110,6 +110,9 @@ class SpatialHarvester(object):
             except urllib2.URLError, e:
                 log.info('WMS check for %s failed due to HTTP connection error "%s".', capabilities_url, e)
                 return False
+            except socket.timeout, e:
+                log.info('WMS check for %s failed due to HTTP connection timeout error "%s".', capabilities_url, e)
+                return False
             xml = res.read()
             if not xml.strip():
                 log.info('WMS check for %s failed due to empty response')
