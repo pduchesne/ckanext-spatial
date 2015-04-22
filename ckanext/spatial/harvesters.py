@@ -583,7 +583,7 @@ class GeminiHarvester(SpatialHarvester):
             # Unable to load this string as JSON, so perhaps the template
             # is incomplete or one of the extra fields contains an empty string
             log.error("Failed to build the spatial extra for {0} using {1}"\
-                .format(package.name, extent_string))
+                .format(gemini_values['title'], extent_string))
 
         tags = []
         for tag in gemini_values['tags']:
