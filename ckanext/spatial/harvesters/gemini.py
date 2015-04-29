@@ -1,14 +1,14 @@
 '''
 Different harvesters for spatial metadata
 
-These are designed for harvesting GEMINI2 for the UK Location Programme
-but can be easily adapted for other INSPIRE/ISO19139 XML metadata
+These are designed for harvesting GEMINI2 for the UK Location Programme.
+
     - GeminiCswHarvester - CSW servers
     - GeminiDocHarvester - An individual GEMINI resource
     - GeminiWafHarvester - An index page with links to GEMINI resources
 
-TODO: Harvesters for generic INSPIRE CSW servers
-
+For metadata that is pure ISO19139 or INSPIRE (outside of the UK) we suggest
+you use alternative harvesters in this directory, such as CSWHarvester.
 '''
 import warnings
 import urllib2
@@ -98,6 +98,8 @@ class SpatialHarvester(object):
 
     @classmethod
     def _try_wms_url(cls, url, version='1.3'):
+        # Here's a neat way to run this manually:
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._try_wms_url('http://soilbio.nerc.ac.uk/datadiscovery/WebPage5.aspx')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader(version=version).capabilities_url(url)
             log.debug('WMS check url: %s', capabilities_url)
@@ -163,7 +165,7 @@ class SpatialHarvester(object):
         it by making basic WMS requests.
         '''
         # Here's a neat way to test this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
             # Get rid of the "version=1.1.1" param that OWSLIB adds, because
@@ -1313,5 +1315,3 @@ class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
             urls.append(url)
         base_url = cls._get_base_url(index_url)
         return [base_url + i for i in urls]
-
-
