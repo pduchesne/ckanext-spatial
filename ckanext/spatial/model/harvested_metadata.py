@@ -1028,7 +1028,7 @@ class ISODocument(MappedXmlDocument):
 
 
 class GeminiDocument(ISODocument):
-    def __init__(self, name, elements=[], **kwargs):
+    def __init__(self, xml_str=None, xml_tree=None, elements=[]):
         # Gemini elements are a little different to
         # ISODocument.elements
         elements = []
@@ -1156,4 +1156,6 @@ class GeminiDocument(ISODocument):
                 multiplicity="1",
             ),
         ]
-        super(GeminiDocument, self).__init__(name, elements=elements, **kwargs)
+        super(GeminiDocument, self).__init__(xml_str=xml_str,
+                                             xml_tree=xml_tree,
+                                             elements=elements)
