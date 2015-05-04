@@ -86,11 +86,14 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
 
         guids_in_db = set(guid_to_package_id.keys())
 
+        # extract cql filter if any
+        cql = self.source_config.get('cql')
+
         log.debug('Starting gathering for %s' % url)
         guids_in_harvest = set()
 
         try:
-            for identifier in self.csw.getidentifiers(page=10, outputschema=self.output_schema(), cswconstraints=self.source_config.get('csw_constraints')):
+            for identifier in self.csw.getidentifiers(page=10, outputschema=self.output_schema(), cswconstraints=self.source_config.get('csw_constraints'), cql=cql):
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
                     if identifier is None:
@@ -128,11 +131,11 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
             obj = HarvestObject(guid=guid, job=harvest_job,
                                 package_id=guid_to_package_id[guid],
                                 extras=[HOExtra(key='status', value='delete')])
-            ids.append(obj.id)
             model.Session.query(HarvestObject).\
                   filter_by(guid=guid).\
                   update({'current': False}, False)
             obj.save()
+            ids.append(obj.id)
 
         if len(ids) == 0:
             self._save_gather_error('No records received from the CSW server', harvest_job)
