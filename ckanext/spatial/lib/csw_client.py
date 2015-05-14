@@ -10,21 +10,23 @@ from owslib.fes import PropertyIsEqualTo
 
 log = logging.getLogger(__name__)
 
+
 class CswError(Exception):
     pass
 
+
 class OwsService(object):
-    def __init__(self, endpoint=None):
+    def __init__(self, endpoint=None, timeout=10):
         if endpoint is not None:
-            self._ows(endpoint)
-            
+            self._ows(endpoint, timeout=timeout)
+
     def __call__(self, args):
         return getattr(self, args.operation)(**self._xmd(args))
-    
+
     @classmethod
     def _operations(cls):
         return [x for x in dir(cls) if not x.startswith("_")]
-    
+
     def _xmd(self, obj):
         md = {}
         for attr in [x for x in dir(obj) if not x.startswith("_")]:
@@ -42,16 +44,20 @@ class OwsService(object):
             else:
                 md[attr] = self._xmd(val)
         return md
-        
-    def _ows(self, endpoint=None, **kw):
+
+    def _ows(self, endpoint=None, timeout=10, **kw):
+        '''
+        :param endpoint: URL of the CSW server
+        '''
         if not hasattr(self, "_Implementation"):
             raise NotImplementedError("Needs an Implementation")
         if not hasattr(self, "__ows_obj__"):
             if endpoint is None:
                 raise ValueError("Must specify a service endpoint")
-            self.__ows_obj__ = self._Implementation(endpoint)
+            self.__ows_obj__ = self._Implementation(endpoint, timeout=timeout,
+                                                    **kw)
         return self.__ows_obj__
-    
+
     def getcapabilities(self, debug=False, **kw):
         ows = self._ows(**kw)
         caps = self._xmd(ows)
@@ -60,7 +66,8 @@ class OwsService(object):
             if "response" in caps: del caps["response"]
         if "owscommon" in caps: del caps["owscommon"]
         return caps
-    
+
+
 class CswService(OwsService):
     """
     Perform various operations on a CSW service
@@ -74,7 +81,7 @@ class CswService(OwsService):
         csw = self._ows(**kw)
 
         if qtype is not None:
-           constraints.append(PropertyIsEqualTo("dc:type", qtype))
+            constraints.append(PropertyIsEqualTo("dc:type", qtype))
 
         kwa = {
             "constraints": constraints,
@@ -104,7 +111,7 @@ class CswService(OwsService):
         csw = self._ows(**kw)
 
         if qtype is not None:
-           constraints.append(PropertyIsEqualTo("dc:type", qtype))
+            constraints.append(PropertyIsEqualTo("dc:type", qtype))
 
         kwa = {
             "constraints": constraints,
@@ -118,7 +125,7 @@ class CswService(OwsService):
         matches = 0
         while True:
             log.info('Making CSW request: getrecords2 %r', kwa)
-            
+
             # this might raise e.g. URLError: <urlopen error timed out>
             csw.getrecords2(**kwa)
             if csw.exceptionreport:
@@ -126,10 +133,10 @@ class CswService(OwsService):
                       csw.exceptionreport.exceptions
                 #log.error(err)
                 raise CswError(err)
-            
+
             if matches == 0:
                 matches = csw.results['matches']
-                    
+
             identifiers = csw.records.keys()
             if limit is not None:
                 identifiers = identifiers[:(limit-startposition)]
@@ -148,7 +155,7 @@ class CswService(OwsService):
                 break
 
             kwa["startposition"] = startposition
-            
+
     def getrecordbyid(self, ids=[], esn="full", outputschema="gmd", **kw):
         from owslib.csw import namespaces
         csw = self._ows(**kw)
@@ -174,7 +181,8 @@ class CswService(OwsService):
         md = csw._exml.find("/{http://www.isotc211.org/2005/gmd}MD_Metadata")
         mdtree = etree.ElementTree(md)
         try:
-            record["xml"] = etree.tostring(mdtree, pretty_print=True, xml_declaration=True)
+            record["xml"] = etree.tostring(mdtree, pretty_print=True,
+                                           xml_declaration=True)
         except TypeError:
             # API incompatibilities between different flavours of elementtree
             try:

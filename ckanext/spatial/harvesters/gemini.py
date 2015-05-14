@@ -1086,7 +1086,7 @@ class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
         return True
 
     def _setup_csw_client(self, url):
-        self.csw = CswService(url)
+        self.csw = CswService(url, timeout=60)
 
 
 class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
