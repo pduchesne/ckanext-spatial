@@ -16,8 +16,8 @@ def extract_guid(csw_url):
     '''Given a CSW GetRecordByID URL, identify the record\'s ID (GUID).
     Returns the GUID or None if it can\'t find it.'''
     # Example CSW url: http://ogcdev.bgs.ac.uk/geonetwork/srv/en/csw?SERVICE=CSW&amp;REQUEST=GetRecordById&amp;ID=9df8df52-d788-37a8-e044-0003ba9b0d98&amp;elementSetName=full&amp;OutputSchema=http://www.isotc211.org/2005/gmd
+    global guid_matcher
     if not guid_matcher:
-        global guid_matcher
         guid_matcher = re.compile('id=\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', flags=re.IGNORECASE)
     guid_match = guid_matcher.search(csw_url)
     if guid_match:
