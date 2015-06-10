@@ -21,6 +21,8 @@ class OwsService(object):
             self._ows(endpoint, timeout=timeout)
 
     def __call__(self, args):
+        '''Used by cswinfo to run a particular service function
+        e.g. self.getcapabilities'''
         return getattr(self, args.operation)(**self._xmd(args))
 
     @classmethod
@@ -28,6 +30,10 @@ class OwsService(object):
         return [x for x in dir(cls) if not x.startswith("_")]
 
     def _xmd(self, obj):
+        '''Given argparse arguments, it returns a dict, stripping off blanks
+        (e.g. 'typenames': None) and callables (e.g. 'service': <class
+        'ckanext.spatial.lib.csw_client.CswService'>)
+        '''
         md = {}
         for attr in [x for x in dir(obj) if not x.startswith("_")]:
             val = getattr(obj, attr)
@@ -47,6 +53,9 @@ class OwsService(object):
 
     def _ows(self, endpoint=None, timeout=10, **kw):
         '''
+        Returns OWS service client (e.g. OWSLib's CSW) that you can call
+        methods on (e.g. getrecords2).
+
         :param endpoint: URL of the CSW server
         '''
         if not hasattr(self, "_Implementation"):
@@ -54,8 +63,8 @@ class OwsService(object):
         if not hasattr(self, "__ows_obj__"):
             if endpoint is None:
                 raise ValueError("Must specify a service endpoint")
-            self.__ows_obj__ = self._Implementation(endpoint, timeout=timeout,
-                                                    **kw)
+            self._endpoint = endpoint
+            self.__ows_obj__ = self._Implementation(endpoint, timeout=timeout)
         return self.__ows_obj__
 
     def getcapabilities(self, debug=False, **kw):
@@ -91,7 +100,7 @@ class CswService(OwsService):
             "maxrecords": count,
             "outputschema": namespaces[outputschema],
             }
-        log.info('Making CSW request: getrecords2 %r', kwa)
+        log.info('Making CSW request: getrecords2 %s %r', self._endpoint, kwa)
         csw.getrecords2(**kwa)
         if csw.exceptionreport:
             err = 'Error getting records: %r' % \
@@ -125,7 +134,7 @@ class CswService(OwsService):
         i = 0
         matches = 0
         while True:
-            log.info('Making CSW request: getrecords2 %r', kwa)
+            log.info('Making CSW request: getrecords2 %s %r', self._endpoint, kwa)
 
             # this might raise e.g. URLError: <urlopen error timed out>
             csw.getrecords2(**kwa)

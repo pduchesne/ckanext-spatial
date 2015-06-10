@@ -10,7 +10,7 @@ from ckanext.spatial.lib.csw_client import CswService
 
 def cswinfo():
     """
-    Hello World
+    Command-line CSW tool
     """
     log_format = '%(asctime)-7s %(levelname)s %(message)s'
     logging.basicConfig(format=log_format, level=logging.INFO)
@@ -36,7 +36,10 @@ def cswinfo():
     
     args = parser.parse_args()
     service = args.service()
+
+    # run the CSW command
     value = service(args)
+
     if isinstance(value, basestring):
         print value
     elif isinstance(value, types.GeneratorType):
