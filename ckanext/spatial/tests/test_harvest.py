@@ -17,9 +17,9 @@ from ckanext.harvest.model import (setup as harvest_model_setup,
                                    HarvestSource, HarvestJob, HarvestObject,
                                    HarvestCoupledResource, HarvestGatherError)
 from ckanext.spatial.validation import Validators, SchematronValidator
-from ckanext.spatial.harvesters import (GeminiCswHarvester, GeminiDocHarvester,
-                                        GeminiWafHarvester, SpatialHarvester,
-                                        GeminiHarvester)
+from ckanext.spatial.harvesters.gemini import (GeminiCswHarvester, GeminiDocHarvester,
+                                               GeminiWafHarvester, SpatialHarvester,
+                                               GeminiHarvester)
 from ckanext.spatial.model.package_extent import setup as spatial_db_setup
 from ckanext.spatial.tests.base import SpatialTestBase
 
@@ -153,6 +153,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1-waf/index.html',
             'type': u'gemini-waf'
         }
@@ -190,6 +192,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
             'type': u'gemini-single'
         }
@@ -217,13 +221,14 @@ class TestHarvest(HarvestFixtureBase):
         assert len(obj.errors) == 0
 
         package_dict = get_action('package_show_rest')(self.context,{'id':obj.package_id})
+        package_dict_action = get_action('package_show')(self.context,{'id':obj.package_id})
 
         assert package_dict
 
         expected = {
             'name': u'one-scotland-address-gazetteer-web-map-service-wms',
             'title': u'One Scotland Address Gazetteer Web Map Service (WMS)',
-            'tags': [u'Addresses', u'Scottish National Gazetteer'],
+            'tags': [u'addresses', u'scottish-national-gazetteer'],
             'notes': u'This service displays its contents at larger scale than 1:10000. [edited]',
         }
 
@@ -263,8 +268,6 @@ class TestHarvest(HarvestFixtureBase):
             'spatial-reference-system': u'OSGB 1936 / British National Grid (EPSG:27700)',
             'temporal_coverage-from': u'["1904-06-16"]',
             'temporal_coverage-to': u'["2004-06-16"]',
-            'theme-primary': 'Mapping',
-            'themes-secondary': '["Environment"]',
         }
 
         for key,value in expected_extras.iteritems():
@@ -311,6 +314,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/dataset1.xml',
             'type': u'gemini-single'
         }
@@ -344,7 +349,7 @@ class TestHarvest(HarvestFixtureBase):
         expected = {
             'name': u'country-parks-scotland',
             'title': u'Country Parks (Scotland)',
-            'tags': [u'Nature conservation'],
+            'tags': [u'nature-conservation'],
             'notes': u'Parks are set up by Local Authorities to provide open-air recreation facilities close to towns and cities. [edited]'
         }
 
@@ -412,6 +417,8 @@ class TestHarvest(HarvestFixtureBase):
     def test_harvest_error_bad_xml(self):
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/error_bad_xml.xml',
             'type': u'gemini-single'
         }
@@ -437,6 +444,8 @@ class TestHarvest(HarvestFixtureBase):
     def test_harvest_error_connection(self):
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:123456/wrong_port',
             'type': u'gemini-single'
         }
@@ -457,6 +466,8 @@ class TestHarvest(HarvestFixtureBase):
     def test_harvest_error_bad_status(self):
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/not_there',
             'type': u'gemini-single'
         }
@@ -479,6 +490,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/error_validation.xml',
             'type': u'gemini-single'
         }
@@ -521,6 +534,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/dataset1.xml',
             'type': u'gemini-single'
         }
@@ -533,7 +548,6 @@ class TestHarvest(HarvestFixtureBase):
 
         # Package was created
         assert first_package_dict
-        assert_equal(get_pkg_dict_extra(first_package_dict, 'theme-primary'), 'Towns')
         assert first_obj.current == True
         assert first_obj.package
 
@@ -557,17 +571,6 @@ class TestHarvest(HarvestFixtureBase):
         assert not second_obj.package, not second_obj.package_id
         assert second_obj.current == False, first_obj.current == True
 
-        # Change the theme, as if it was changed to a different value manually (by sysadmin)
-        for extra in second_package_dict['extras']:
-            if extra['key'] == 'theme-primary':
-                extra['value'] = 'New Theme'
-                break
-        else:
-            assert 0
-        get_action('package_update')(self.context, second_package_dict)
-        edited_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
-        assert_equal(get_pkg_dict_extra(edited_package_dict, 'theme-primary'), 'New Theme')
-
         # Create and run a third job, forcing the importing to simulate an update in the package
         third_job = self._create_job(source.id)
         third_obj = self._run_job_for_single_document(third_job,force_import=True)
@@ -582,6 +585,7 @@ class TestHarvest(HarvestFixtureBase):
         Session.refresh(first_obj)
         Session.refresh(second_obj)
         Session.refresh(third_obj)
+        Session.refresh(model.Package.get(third_obj.package_id))
 
         third_package_dict = get_action('package_show_rest')(self.context,{'id':third_obj.package_id})
 
@@ -593,15 +597,13 @@ class TestHarvest(HarvestFixtureBase):
         assert second_obj.current == False
         assert first_obj.current == False
 
-        # Including the theme. Publishers should use the GEMET INSPIRE Keyword to set theme, not rely on sysadmins.
-        edited_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
-        assert_equal(get_pkg_dict_extra(edited_package_dict, 'theme-primary'), 'Towns')
-
 
     def test_harvest_deleted_record(self):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
             'type': u'gemini-single'
         }
@@ -674,6 +676,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source1
         source1_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/source1/same_dataset.xml',
             'type': u'gemini-single'
         }
@@ -694,6 +698,8 @@ class TestHarvest(HarvestFixtureBase):
         # (As of https://github.com/okfn/ckanext-inspire/commit/9fb67
         # we are no longer throwing an exception when this happens)
         source2_fixture = {
+            'title': 'Test Source 2',
+            'name': 'test-source-2',
             'url': u'http://127.0.0.1:8999/gemini2.1/source2/same_dataset.xml',
             'type': u'gemini-single'
         }
@@ -712,6 +718,7 @@ class TestHarvest(HarvestFixtureBase):
 
 
         # Inactivate source1 and reharvest from source2, package should be updated
+        # because we use force_import
         third_job = self._create_job(source2.id)
         third_obj = self._run_job_for_single_document(third_job,force_import=True)
 
@@ -723,6 +730,10 @@ class TestHarvest(HarvestFixtureBase):
         Session.refresh(first_obj)
         Session.refresh(second_obj)
         Session.refresh(third_obj)
+
+        # weirdly the package regresses to the old state when you do the Session.add()s
+        # so refresh it again
+        Session.refresh(model.Package.get(first_obj.package_id))
 
         third_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
@@ -739,6 +750,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Create source1
         source1_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/source1/same_dataset.xml',
             'type': u'gemini-single'
         }
@@ -760,6 +773,8 @@ class TestHarvest(HarvestFixtureBase):
 
         # Harvest the same document, unchanged, from another source
         source2_fixture = {
+            'title': 'Test Source 2',
+            'name': 'test-source-2',
             'url': u'http://127.0.0.1:8999/gemini2.1/source2/same_dataset.xml',
             'type': u'gemini-single'
         }
@@ -781,6 +796,8 @@ class TestHarvest(HarvestFixtureBase):
     def test_harvest_duplicate_guids(self):
         # Create source1
         source1_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
             'type': u'gemini-single',
             'publisher_id': self.publisher.id,
@@ -801,6 +818,8 @@ class TestHarvest(HarvestFixtureBase):
         # Harvest the same document GUID, DIFFERENT title, from another source.
         # The GUID is clearly copied, so don't allow it.
         source2_fixture = {
+            'title': 'Test Source 2',
+            'name': 'test-source-2',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1_but_different_title.xml',
             'type': u'gemini-single',
             'publisher_id': self.publisher2.id,
@@ -812,10 +831,12 @@ class TestHarvest(HarvestFixtureBase):
         assert_in('GUIDs must be globally unique', second_obj.errors[0].message)
 
 
-    def test_harvest_moves_sources(self):
+    def test_harvest_moves_sources_to_same_publisher(self):
 
         # Create source1
         source1_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
             'type': u'gemini-single',
             'publisher_id': self.publisher.id,
@@ -835,6 +856,54 @@ class TestHarvest(HarvestFixtureBase):
 
         # Harvest the same document GUID but with a newer date, from another source.
         source2_fixture = {
+            'title': 'Test Source 2',
+            'name': 'test-source-2',
+            'url': u'http://127.0.0.1:8999/gemini2.1/service1_but_different_title.xml',
+            'type': u'gemini-single',
+            'publisher_id': self.publisher.id,
+        }
+
+        source2, second_job = self._create_source_and_job(source2_fixture)
+
+        second_obj = self._run_job_for_single_document(second_job)
+        # NB no error, but since the record has not changed, there is no change
+        # to the dataset.
+        second_package_dict = get_action('package_show')(self.context, {'id': first_obj.package_id})
+
+        # The old package has simply changed to the new harvest source
+        assert second_package_dict['id'] == first_package_dict['id']
+        assert second_package_dict['metadata_modified'] > first_package_dict['metadata_modified']
+        # To move a Gemini record between harvest sources of the same publisher
+        # you can just refer to it in a harvest source under the new publisher,
+        # make sure the date in the record is newer and reharvest.
+
+    def test_harvest_fails_moving_sources_to_different_publisher(self):
+
+        # Create source1
+        source1_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
+            'url': u'http://127.0.0.1:8999/gemini2.1/service1.xml',
+            'type': u'gemini-single',
+            'publisher_id': self.publisher.id,
+        }
+
+        source1, first_job = self._create_source_and_job(source1_fixture)
+
+        first_obj = self._run_job_for_single_document(first_job)
+
+        first_package_dict = get_action('package_show')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert first_package_dict
+        assert first_package_dict['state'] == u'active'
+        assert first_obj.current == True
+        assert_equal(first_package_dict['organization']['name'], 'test-publisher')
+
+        # Harvest the same document GUID but with a newer date, from another source.
+        source2_fixture = {
+            'title': 'Test Source 2',
+            'name': 'test-source-2',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1_duplicate.xml',
             'type': u'gemini-single',
             'publisher_id': self.publisher2.id,
@@ -842,19 +911,16 @@ class TestHarvest(HarvestFixtureBase):
 
         source2, second_job = self._create_source_and_job(source2_fixture)
 
-        second_obj = self._run_job_for_single_document(second_job)
-        second_package_dict = get_action('package_show')(self.context, {'id': first_obj.package_id})
+        second_obj = self._run_job_for_single_document(second_job, expect_obj_errors=True)
+        assert_in('matches a record from another publisher', second_obj.errors[0].message)
 
-        # The old package has simply changed to the new publisher and name
-        assert second_package_dict['id'] == first_package_dict['id']
-        assert_equal(second_package_dict['organization']['name'], 'test-publisher2')
-        # To move a Gemini record between harvest sources you can just
-        # refer to it in a harvest source under the new publisher and reharvest.
 
     def test_harvest_import_command(self):
 
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/dataset1.xml',
             'type': u'gemini-single'
         }
@@ -878,6 +944,7 @@ class TestHarvest(HarvestFixtureBase):
 
         # Run the import command manually
         imported_objects = get_action('harvest_objects_import')(self.context,{'source_id':source.id})
+        assert_equal(imported_objects, 1)
         Session.remove()
         Session.add(first_obj)
         Session.add(second_obj)
@@ -886,6 +953,7 @@ class TestHarvest(HarvestFixtureBase):
         Session.refresh(first_obj)
         Session.refresh(second_obj)
         Session.refresh(third_obj)
+        Session.refresh(model.Package.get(first_obj.package_id))
 
         after_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
@@ -896,12 +964,13 @@ class TestHarvest(HarvestFixtureBase):
         assert second_obj.current == False
         assert first_obj.current == True
 
-
         source_dict = get_action('harvest_source_show')(self.context,{'id':source.id})
-        assert len(source_dict['status']['packages']) == 1
+        assert_equal(len(source_dict['status']['datasets']), 1)
 
     def test_harvest_bad_extent(self):
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/service1_bad_extent.xml',
             'type': u'gemini-single',
         }
@@ -925,6 +994,8 @@ class TestGatherMethods(HarvestFixtureBase):
         HarvestFixtureBase.setup(self)
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/dataset1.xml',
             'type': u'gemini-single'
         }
@@ -1009,8 +1080,10 @@ class TestImportStageTools:
                                     {'organisation-name': 'Maps Ltd',
                                      'role': 'distributor'}]
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
-                     ('Ordnance Survey', ['Maps Ltd (distributor)',
-                                          'Ordnance Survey (owner)']))
+                     ('Ordnance Survey',
+                      ['Maps Ltd (distributor)', 'Ordnance Survey (owner)'],
+                      ['Maps Ltd', 'Ordnance Survey'],
+                      ))
 
     def test_responsible_organisation_publisher(self):
         # no owner, so falls back to publisher
@@ -1019,8 +1092,10 @@ class TestImportStageTools:
                                     {'organisation-name': 'Maps Ltd',
                                      'role': 'distributor'}]
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
-                     ('Ordnance Survey', ['Maps Ltd (distributor)',
-                                          'Ordnance Survey (publisher)']))
+                     ('Ordnance Survey',
+                      ['Maps Ltd (distributor)', 'Ordnance Survey (publisher)'],
+                      ['Maps Ltd', 'Ordnance Survey'],
+                      ))
 
     def test_responsible_organisation_owner(self):
         # provider is the owner (ignores publisher)
@@ -1031,10 +1106,11 @@ class TestImportStageTools:
                                     {'organisation-name': 'Maps Ltd',
                                      'role': 'distributor'}]
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
-                     ('Owner', ['Owner (owner)',
-                                'Maps Ltd (distributor)',
-                                'Ordnance Survey (publisher)',
-                                ]))
+                     ('Owner',
+                      ['Owner (owner)', 'Maps Ltd (distributor)',
+                       'Ordnance Survey (publisher)'],
+                      ['Owner', 'Maps Ltd', 'Ordnance Survey']
+                      ))
 
     def test_responsible_organisation_multiple_roles(self):
         # provider is the owner (ignores publisher)
@@ -1045,9 +1121,12 @@ class TestImportStageTools:
                                     {'organisation-name': 'Distributor',
                                      'role': 'distributor'}]
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
-                     ('Ordnance Survey', ['Distributor (distributor)',
-                                          'Ordnance Survey (publisher, custodian)',
-                                ]))
+                     ('Ordnance Survey',
+                      ['Distributor (distributor)',
+                       'Ordnance Survey (publisher, custodian)'],
+                      ['Distributor',
+                       'Ordnance Survey'],
+                      ))
 
     def test_responsible_organisation_blank_provider(self):
         # no owner or publisher, so blank provider
@@ -1056,14 +1135,17 @@ class TestImportStageTools:
                                     {'organisation-name': 'Maps Ltd',
                                      'role': 'distributor'}]
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
-                     ('', ['Maps Ltd (distributor)',
-                           'Ordnance Survey (resourceProvider)']))
+                     ('',
+                      ['Maps Ltd (distributor)',
+                       'Ordnance Survey (resourceProvider)'],
+                      ['Maps Ltd', 'Ordnance Survey'],
+                      ))
 
     def test_responsible_organisation_blank(self):
         # no owner or publisher, so blank provider
         responsible_organisation = []
         assert_equal(GeminiHarvester._process_responsible_organisation(responsible_organisation),
-                     ('', []))
+                     ('', [], []))
 
     def test_licence_just_free_text(self):
         gemini = {'use_constraints': ['License available'],
@@ -1137,6 +1219,8 @@ class TestValidation(HarvestFixtureBase):
     def get_validation_errors(self, validation_test_filename):
         # Create source
         source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
             'url': u'http://127.0.0.1:8999/gemini2.1/validation/%s' % validation_test_filename,
             'type': u'gemini-single'
         }
@@ -1172,7 +1256,7 @@ class TestValidation(HarvestFixtureBase):
         assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd)', errors)
-        assert_in('Element \'{http://www.isotc211.org/2005/gmd}language\': This element is not expected', errors)
+        assert_in('Element \'gmd:language\': This element is not expected', errors)
 
     def test_02_dataset_fail_constraints_schematron(self):
         errors = self.get_validation_errors('02_Dataset_Invalid_19139_Missing_Data_Format.xml')
@@ -1195,7 +1279,7 @@ class TestValidation(HarvestFixtureBase):
         assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd)', errors)
-        assert_in('Element \'{http://www.isotc211.org/2005/gmd}language\': This element is not expected., line 5', errors)
+        assert_in('Element \'gmd:language\': This element is not expected., line 5', errors)
 
     def test_06_series_fail_constraints_schematron(self):
         errors = self.get_validation_errors('06_Series_Invalid_19139_Missing_Data_Format.xml')
@@ -1218,7 +1302,7 @@ class TestValidation(HarvestFixtureBase):
         assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd & srv.xsd)', errors)
-        assert_in('Element \'{http://www.isotc211.org/2005/gmd}language\': This element is not expected., line 5', errors)
+        assert_in('Element \'gmd:language\': This element is not expected., line 5', errors)
 
     def test_10_service_fail_constraints_schematron(self):
         errors = self.get_validation_errors('10_Service_Invalid_19139_Level_Description.xml')
@@ -1242,7 +1326,7 @@ class TestValidation(HarvestFixtureBase):
         assert len(errors) > 0
         assert_in('ISO19139', errors)
         assert_in('(gmx.xsd)', errors)
-        assert_in('(u"Element \'{http://www.isotc211.org/2005/srv}SV_ServiceIdentification\': This element is not expected.', errors)
+        assert_in('Element \'srv:SV_ServiceIdentification\': This element is not expected.', errors)
 
 
 log = logging.getLogger(__name__)

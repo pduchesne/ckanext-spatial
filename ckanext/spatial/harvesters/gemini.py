@@ -885,11 +885,6 @@ class GeminiHarvester(SpatialHarvester):
         else:
             package_schema = logic.schema.default_update_package_schema()
 
-        # The default package schema does not like Upper case tags
-        tag_schema = logic.schema.default_tags_schema()
-        tag_schema['name'] = [not_empty,unicode]
-        package_schema['tags'] = tag_schema
-
         # TODO: user
         context = {'model':model,
                    'session':Session,
