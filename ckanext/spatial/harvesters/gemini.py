@@ -135,6 +135,10 @@ class SpatialHarvester(object):
                     # e.g. https://gatewaysecurity.ceh.ac.uk/wss/service/LCM2007_GB_25m_Raster/WSS
                     log.info('WMS check for %s failed - OGC error message: %s', url, traceback.format_exc())
                     return False
+                except socket.timeout, e:
+                    # e.g. http://lichfielddc.maps.arcgis.com/apps/webappviewer/index.html?id=2be0619b59a5418c8c9d785c09504f57
+                    log.info('WMS check for %s failed due to HTTP connection timeout error "%s".', capabilities_url, e)
+                    return False
                 is_wms = isinstance(wms.contents, dict) and wms.contents != {}
                 return is_wms
             else:
