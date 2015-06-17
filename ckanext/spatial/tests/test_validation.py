@@ -119,6 +119,18 @@ class TestValidation:
         assert_in('(gmx.xsd)', errors)
         assert_in('Element \'srv:SV_ServiceIdentification\': This element is not expected.', errors)
 
+    def test_non_geographic_dataset_passes_gemini(self):
+        xml_filepath = 'gemini2.1/validation/non_geographic_dataset.xml'
+        errs = self.get_validation_errors(validation.ISO19139EdenSchema,
+                                          xml_filepath)
+        assert not errs, 'ISO19139EdenSchema: ' + errs
+        errs = self.get_validation_errors(validation.ConstraintsSchematron14,
+                                          xml_filepath)
+        assert not errs, 'ConstraintsSchematron14: ' + errs
+        errs = self.get_validation_errors(validation.Gemini2Schematron,
+                                          xml_filepath)
+        assert not errs, 'Gemini2Schematron: ' + errs
+
     def test_schematron_error_extraction(self):
         validation_error_xml = '''
 <root xmlns:svrl="http://purl.oclc.org/dsdl/svrl">

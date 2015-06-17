@@ -397,8 +397,10 @@ class GeminiHarvester(SpatialHarvester):
 
         # Check that the extent does not have zero area - that causes a divide
         # by zero error in map searches. (DGU#782)
-        if gemini_values['bbox-north-lat'] == gemini_values['bbox-south-lat'] \
-          or gemini_values['bbox-west-long'] == gemini_values['bbox-east-long']:
+        # (although a nonGeographicDataset would not have an extent anyway)
+        if gemini_values['resource-type'] != 'nonGeographicDataset' and \
+                (gemini_values['bbox-north-lat'] == gemini_values['bbox-south-lat']
+                 or gemini_values['bbox-west-long'] == gemini_values['bbox-east-long']):
             raise ImportAbort('The Extent\'s geographic bounding box has zero area for GUID %s' % gemini_guid)
 
         # Save the metadata reference date in the Harvest Object

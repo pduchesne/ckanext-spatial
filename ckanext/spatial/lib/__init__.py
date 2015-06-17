@@ -3,6 +3,7 @@ from string import Template
 
 from ckan.model import Session, Package
 from ckan.lib.base import config
+from ckan import plugins
 
 from ckanext.spatial.model import PackageExtent
 from shapely.geometry import asShape
@@ -52,11 +53,19 @@ def save_package_extent(package_id, geometry = None, srid = None):
     if geometry:
         shape = asShape(geometry)
 
-        if not srid:
-            srid = db_srid
+        # Postgis search gives divide-by-zero error if the area is 0, so in
+        # that case don't geometry for such datasets
+        if plugins.get_plugin('spatial_query').search_backend == 'postgis' \
+                and not shape.area:
+            log.debug('No area in extent, so not recording geometry in postgis: %s', package_id)
+            geometry = None
 
-        package_extent = PackageExtent(package_id=package_id,
-                                       the_geom=WKTElement(shape.wkt, srid))
+        if geometry:
+            if not srid:
+                srid = db_srid
+
+            package_extent = PackageExtent(package_id=package_id,
+                                        the_geom=WKTElement(shape.wkt, srid))
 
     # Check if extent exists
     if existing_package_extent:
