@@ -92,6 +92,9 @@ class MappedXmlElement(MappedXmlObject):
         mapped element.
 
         Multiplicity determines if it is a single value or a list returned.
+
+        If the XPaths are not found, or the multiplicity is invalid then it
+        will log a warning and return ''.
         '''
         values = []
         for xpath in self.get_search_paths():
