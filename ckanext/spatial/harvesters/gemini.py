@@ -355,7 +355,27 @@ class GeminiHarvester(SpatialHarvester):
         except UnicodeEncodeError:
             pass
         xml = etree.fromstring(gemini_string)
+        unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
+        # The first check is whether to skip the record due to its
+        # responsible-party (we don't want validation errors showing up if the
+        # record would otherwise be skipped)
+        source_config = json.loads(harvest_object.source.config or '{}')
+        if source_config.get('skip-responsible-party'):
+            gemini_document = GeminiDocument(unicode_gemini_string)
+            responsible_orgs = gemini_document.read_value('responsible-organisation')
+            responsible_org_names = [org['organisation-name']
+                                     for org in responsible_orgs]
+            to_skip = source_config['skip-responsible-party']
+            if isinstance(to_skip, basestring):
+                to_skip = [to_skip]
+            to_skip_and_found = set(to_skip) & set(responsible_org_names)
+            if to_skip_and_found:
+                log.info('Skipping due to responsible parties: %r (ref: %s)',
+                         to_skip_and_found, harvest_source_reference)
+                return None
+
+        # Validation
         valid, messages = self._get_validator(harvest_object).is_valid(xml)
         if not valid:
             reject = asbool(config.get('ckan.spatial.validator.reject', False))
@@ -370,8 +390,6 @@ class GeminiHarvester(SpatialHarvester):
                 raise ImportAbort(out)
             else:
                 self._save_object_error(out,self.obj,'Import')
-
-        unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
         # may raise ImportAbort for errors
         package_dict = self.write_package_from_gemini_string(unicode_gemini_string, harvest_object)
@@ -438,17 +456,6 @@ class GeminiHarvester(SpatialHarvester):
                 gemini_values['responsible-organisation'])
         extras['provider'] = provider
         extras['responsible-party'] = '; '.join(responsible_parties)
-        source_config = json.loads(harvest_object.source.config or '{}')
-        if source_config.get('skip-responsible-party') and \
-                responsible_parties_without_roles:
-            to_skip = source_config['skip-responsible-party']
-            if isinstance(to_skip, basestring):
-                to_skip = [to_skip]
-            to_skip_and_found = set(to_skip) & set(responsible_parties_without_roles)
-            if to_skip_and_found:
-                log.info('Skipping due to responsible parties: %r (GUID %s)',
-                         to_skip_and_found, gemini_guid)
-                return None
 
         last_harvested_object = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==gemini_guid) \

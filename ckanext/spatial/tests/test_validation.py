@@ -23,7 +23,7 @@ class TestValidation:
 
         assert len(errors) > 0
         assert_in('Dataset schema (gmx.xsd)', errors)
-        assert_in('{http://www.isotc211.org/2005/gmd}nosuchelement\': This element is not expected.', errors)
+        assert_in('gmd:nosuchelement\': This element is not expected.', errors)
 
     def test_iso19139_pass(self):
         errors = self.get_validation_errors(validation.ISO19139Schema,
@@ -39,7 +39,7 @@ class TestValidation:
                                             'gemini2.1/validation/01_Dataset_Invalid_XSD_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('(gmx.xsd)', errors)
-        assert_in('\'{http://www.isotc211.org/2005/gmd}nosuchelement\': This element is not expected.', errors)
+        assert_in('\'gmd:nosuchelement\': This element is not expected.', errors)
 
     def test_02_dataset_fail_constraints_schematron(self):
         errors = self.get_validation_errors(validation.ConstraintsSchematron14,
@@ -72,7 +72,7 @@ class TestValidation:
              'gemini2.1/validation/05_Series_Invalid_XSD_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('(gmx.xsd)', errors)
-        assert_in('\'{http://www.isotc211.org/2005/gmd}nosuchelement\': This element is not expected.', errors)
+        assert_in('\'gmd:nosuchelement\': This element is not expected.', errors)
 
     def test_06_series_fail_constraints_schematron(self):
         errors = self.get_validation_errors(validation.ConstraintsSchematron14,
@@ -94,7 +94,7 @@ class TestValidation:
              'gemini2.1/validation/09_Service_Invalid_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('(gmx.xsd & srv.xsd)', errors)
-        assert_in('\'{http://www.isotc211.org/2005/gmd}nosuchelement\': This element is not expected.', errors)
+        assert_in('\'gmd:nosuchelement\': This element is not expected.', errors)
 
     def test_10_service_fail_constraints_schematron(self):
         errors = self.get_validation_errors(validation.ConstraintsSchematron14,
@@ -117,7 +117,7 @@ class TestValidation:
                  'gemini2.1/validation/13_Dataset_Invalid_Element_srv.xml')
         assert len(errors) > 0
         assert_in('(gmx.xsd)', errors)
-        assert_in('(u"Element \'{http://www.isotc211.org/2005/srv}SV_ServiceIdentification\': This element is not expected.', errors)
+        assert_in('Element \'srv:SV_ServiceIdentification\': This element is not expected.', errors)
 
     def test_schematron_error_extraction(self):
         validation_error_xml = '''

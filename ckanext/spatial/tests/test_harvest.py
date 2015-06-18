@@ -978,6 +978,25 @@ class TestHarvest(HarvestFixtureBase):
         obj = self._run_job_for_single_document(job, expect_obj_errors=True)
         assert_in('bounding box has zero area', obj.errors[0].message)
 
+    def test_harvest_skips_responsible_org_using_config(self):
+
+        source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
+            'url': u'http://127.0.0.1:8999/gemini2.1/dataset1.xml',
+            'type': u'gemini-single',
+            'publisher_id': self.publisher.id,
+            'config': '{"skip-responsible-party": ["Scottish Natural Heritage"]}'
+        }
+
+        source, first_job = self._create_source_and_job(source_fixture)
+
+        obj = self._run_job_for_single_document(first_job)
+
+        assert_equal(obj.current, False)  # i.e. skipped
+        assert_equal(obj.package_id, None)
+
+
 BASIC_GEMINI = '''<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
   <gmd:fileIdentifier xmlns:gml="http://www.opengis.net/gml">
     <gco:CharacterString>e269743a-cfda-4632-a939-0c8416ae801e</gco:CharacterString>
@@ -988,6 +1007,7 @@ BASIC_GEMINI = '''<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" 
 </gmd:MD_Metadata>'''
 GUID = 'e269743a-cfda-4632-a939-0c8416ae801e'
 GEMINI_MISSING_GUID = '''<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco"/>'''
+
 
 class TestGatherMethods(HarvestFixtureBase):
     def setup(self):
