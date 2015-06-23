@@ -1,7 +1,7 @@
 import os
 import re
 from pkg_resources import resource_stream, resource_filename
-from ckanext.spatial.model import GeminiDocument
+from ckanext.spatial.model import ISODocument
 
 from lxml import etree
 
@@ -88,35 +88,26 @@ class ISO19139EdenSchema(XsdValidator):
     def is_valid(cls, xml):
         xsd_path = 'xml/iso19139eden'
 
-        metadata_type = cls.get_record_type(xml)
+        record_types = get_iso_record_types(xml)
 
-        if metadata_type in ('dataset', 'series'):
-            gmx_xsd_filepath = os.path.join(os.path.dirname(__file__),
-                                            xsd_path, 'gmx/gmx.xsd')
-            is_valid, errors = cls._is_valid(xml, gmx_xsd_filepath, 'Dataset schema (gmx.xsd)')
-        elif metadata_type == 'service':
+        if 'service' in record_types:
             gmx_and_srv_xsd_filepath = os.path.join(os.path.dirname(__file__),
                                                     xsd_path, 'gmx_and_srv.xsd')
             is_valid, errors = cls._is_valid(xml, gmx_and_srv_xsd_filepath, 'Service schemas (gmx.xsd & srv.xsd)')
+        elif set(record_types) & set(('dataset', 'series',
+                                      'nonGeographicDataset')):
+            gmx_xsd_filepath = os.path.join(os.path.dirname(__file__),
+                                            xsd_path, 'gmx/gmx.xsd')
+            is_valid, errors = cls._is_valid(xml, gmx_xsd_filepath, 'Dataset schema (gmx.xsd)')
         else:
             is_valid = False
-            errors = ['Metadata type not recognised "%s" - cannot choose an ISO19139 validator.' %
-                      metadata_type]
+            errors = ['Metadata record-type "%s" not recognised - data.gov.uk does not know how to validate it.' %
+                      ' '.join(record_types)]
         if is_valid:
             return True, []
 
         return False, errors
 
-    @classmethod
-    def get_record_type(cls, xml):
-        '''
-        For a given ISO19139 record, returns the "type"
-        e.g. "dataset", "series", "service"
-
-        xml - etree of the ISO19139 XML record
-        '''
-        gemini = GeminiDocument(xml_tree=xml)
-        return gemini.read_value('resource-type')
 
 class SchematronValidator(BaseValidator):
     '''Base class for a validator that uses Schematron.'''
@@ -220,7 +211,17 @@ class ConstraintsSchematron14(SchematronValidator):
             return [cls.schematron(schema)]
 
 
-class Gemini2Schematron(SchematronValidator):
+class GeminiSchematronBase(SchematronValidator):
+    @classmethod
+    def is_valid(cls, xml):
+        # Do not validate a nonGeographicDataset - it is not GEMINI2
+        record_types = get_iso_record_types(xml)
+        if record_types == ['nonGeographicDataset']:
+            return True, []
+        return super(GeminiSchematronBase, cls).is_valid(xml)
+
+
+class Gemini2Schematron(GeminiSchematronBase):
     name = 'gemini2'
     title = 'GEMINI 2.1 Schematron 1.2'
 
@@ -230,7 +231,8 @@ class Gemini2Schematron(SchematronValidator):
                              "validation/xml/gemini2/gemini2-schematron-20110906-v1.2.sch") as schema:
             return [cls.schematron(schema)]
 
-class Gemini2Schematron13(SchematronValidator):
+
+class Gemini2Schematron13(GeminiSchematronBase):
     name = 'gemini2-1.3'
     title = 'GEMINI 2.1 Schematron 1.3'
 
@@ -246,6 +248,17 @@ all_validators = (ISO19139Schema,
                   ConstraintsSchematron14,
                   Gemini2Schematron,
                   Gemini2Schematron13)
+
+
+def get_iso_record_types(xml):
+    '''
+    For a given ISO19139 record, returns the "type"(s)
+    e.g. "dataset", "series", "service"
+
+    xml - etree of the ISO19139 XML record
+    '''
+    gemini = ISODocument(xml_tree=xml)
+    return gemini.read_value('resource-type')
 
 
 class Validators(object):

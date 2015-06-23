@@ -143,6 +143,13 @@ class SpatialQuery(p.SingletonPlugin):
 
     p.implements(p.IRoutes, inherit=True)
     p.implements(p.IPackageController, inherit=True)
+    p.implements(p.IConfigurable, inherit=True)
+
+    search_backend = None
+
+    def configure(self, config):
+
+        self.search_backend = 'postgis'
 
     def before_map(self, map):
 
