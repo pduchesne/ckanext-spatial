@@ -184,6 +184,12 @@ class SpatialHarvester(object):
                 # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
                 log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
                 return False, set()
+            except urllib2.URLError, e:
+                log.info('WMS check for %s failed due to HTTP connection error "%s".', capabilities_url, e)
+                return False, set()
+            except socket.timeout, e:
+                log.info('WMS check for %s failed due to HTTP connection timeout error "%s".', capabilities_url, e)
+                return False, set()
             xml_str = res.read()
             parser = etree.XMLParser(remove_blank_text=True)
             try:
@@ -271,6 +277,9 @@ class SpatialHarvester(object):
         except urllib2.URLError, e:
             raise GetContentError('URL syntax error or could not make connection to the host server. URL: "%s" Error: %r' % \
                                   (url, e.reason))
+            return None
+        except socket.timeout, e:
+            log.info('HTTP connection timeout error "%s" URL: %s', e, url)
             return None
         return (http_response.read(), http_response.geturl())
 
