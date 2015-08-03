@@ -23,6 +23,7 @@ import difflib
 import traceback
 import re
 import socket
+import httplib
 
 from lxml import etree
 from pylons import config
@@ -115,6 +116,9 @@ class SpatialHarvester(object):
             except socket.timeout, e:
                 log.info('WMS check for %s failed due to HTTP connection timeout error "%s".', capabilities_url, e)
                 return False
+            except httplib.HTTPException, e:
+                log.info('WMS check for %s failed due to HTTP error "%s".', capabilities_url, e)
+                return False
             xml = res.read()
             if not xml.strip():
                 log.info('WMS check for %s failed due to empty response')
@@ -190,6 +194,9 @@ class SpatialHarvester(object):
             except socket.timeout, e:
                 log.info('WMS check for %s failed due to HTTP connection timeout error "%s".', capabilities_url, e)
                 return False, set()
+            except httplib.HTTPException, e:
+                log.info('WMS check for %s failed due to HTTP error "%s".', capabilities_url, e)
+                return False
             xml_str = res.read()
             parser = etree.XMLParser(remove_blank_text=True)
             try:
@@ -281,6 +288,9 @@ class SpatialHarvester(object):
         except socket.timeout, e:
             log.info('HTTP connection timeout error "%s" URL: %s', e, url)
             return None
+        except httplib.HTTPException, e:
+            log.info('HTTP access of %s failed due to HTTP error "%s".', url, e)
+            return False
         return (http_response.read(), http_response.geturl())
 
 class GeminiHarvester(SpatialHarvester):

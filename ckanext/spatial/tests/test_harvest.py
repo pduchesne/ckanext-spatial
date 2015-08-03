@@ -1262,6 +1262,11 @@ class TestValidation(HarvestFixtureBase):
 
         # Check the validation errors
         errors = '; '.join([object_error.message for object_error in obj.errors])
+
+        # Check for xmllib2 bug
+        if 'A type, derived by list or union, must have the simple ur-type definition as base type' in errors:
+            raise Exception('You encountered a bug with an old xmllib2 version. Upgrade to 2.9.0+ - see http://docs.ckan.org/projects/ckanext-spatial/en/latest/install.html#when-running-the-spatial-harvesters')
+
         return errors
 
     def test_01_dataset_fail_iso19139_schema(self):
