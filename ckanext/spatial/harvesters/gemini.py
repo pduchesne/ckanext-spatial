@@ -935,6 +935,12 @@ class GeminiHarvester(SpatialHarvester):
             action_function = get_action('package_update')
             package_dict['id'] = package.id
 
+            existing_resource_ids = dict((r.url, r.id) for r in package.resources)
+
+            for resource in package_dict['resources']:
+                if resource['url'] in existing_resource_ids:
+                    resource['id'] = existing_resource_ids[resource['url']]
+
         log = logging.getLogger(__name__ + '.import')
         log.info('package_create/update %r %r', context, package_dict)
         try:
