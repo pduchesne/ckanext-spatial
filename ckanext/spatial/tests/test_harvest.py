@@ -10,7 +10,7 @@ from ckan.lib.base import config
 from ckan.lib.create_test_data import CreateTestData
 from ckan.lib.helpers import get_pkg_dict_extra
 from ckan import model
-from ckan.model import Session,Package
+from ckan.model import Session, Package, Resource
 from ckan.logic.schema import default_update_package_schema
 from ckan.logic import get_action
 from ckanext.harvest.model import (setup as harvest_model_setup,
@@ -182,11 +182,47 @@ class TestHarvest(HarvestFixtureBase):
 
         assert_equal(len(pkgs), 2)
 
+        resources = Session.query(Resource).all()
+
+        assert_equal(len(resources), 6)
+
         pkg_ids = [pkg.id for pkg in pkgs]
 
         for obj in objects:
             assert obj.current == True
             assert obj.package_id in pkg_ids
+
+        # Harvest again with updated files
+        source_fixture = {
+            'title': 'Test Source Modified',
+            'name': 'test-source-modified',
+            'url': u'http://127.0.0.1:8999/gemini2.1-waf/index-modified.html',
+            'type': u'gemini-waf'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        # We need to send an actual job, not the dict
+        object_ids = harvester.gather_stage(job)
+
+        # Fetch stage always returns True for Waf harvesters
+        assert harvester.fetch_stage(object_ids) == True
+
+        objects = []
+        for object_id in object_ids:
+            obj = HarvestObject.get(object_id)
+            assert obj
+            objects.append(obj)
+            harvester.import_stage(obj)
+
+        # Check that there are the same number of packages and resources
+        pkgs = Session.query(Package).all()
+
+        assert_equal(len(pkgs), 2)
+
+        resources = Session.query(Resource).all()
+
+        assert_equal(len(resources), 6)
 
     def test_harvest_fields_service(self):
 
