@@ -687,6 +687,10 @@ class GeminiHarvester(SpatialHarvester):
                 if len(view_resources):
                     view_resources[0]['ckan_recommended_wms_preview'] = True
 
+        if package:
+            self._match_resources_with_existing_ones(package_dict['resources'],
+                                                     package.resources)
+
         # DGU ONLY: Guess theme from other metadata
         try:
             from ckanext.dgu.lib.theme import categorize_package, PRIMARY_THEME, SECONDARY_THEMES
@@ -935,12 +939,6 @@ class GeminiHarvester(SpatialHarvester):
             action_function = get_action('package_update')
             package_dict['id'] = package.id
 
-            existing_resource_ids = dict((r.url, r.id) for r in package.resources)
-
-            for resource in package_dict['resources']:
-                if resource['url'] in existing_resource_ids:
-                    resource['id'] = existing_resource_ids[resource['url']]
-
         log = logging.getLogger(__name__ + '.import')
         log.info('package_create/update %r %r', context, package_dict)
         try:
@@ -996,6 +994,44 @@ class GeminiHarvester(SpatialHarvester):
             gemini_guid = None
 
         return gemini_string, gemini_guid
+
+    @classmethod
+    def _match_resources_with_existing_ones(cls, res_dicts,
+                                            existing_resources):
+        '''Adds IDs to given resource dicts, based on existing resources, so
+        that when we do package_update the resources are updated rather than
+        deleted and recreated.
+
+        Edits the res_dicts in-place
+
+        :param res_dicts: Resources to have the ID added
+        :param existing_resources: Existing resources - have IDs. dicts or
+                                   Resource objects
+        :returns: None
+        '''
+        unmatched_res_dicts = [res_dict for res_dict in res_dicts]
+        if existing_resources and isinstance(existing_resources[0], dict):
+            unmatched_existing_res_dicts = [res_dict
+                                            for res_dict in existing_resources]
+        else:
+            unmatched_existing_res_dicts = [dict(id=res.id, url=res.url,
+                                                 name=res.name,
+                                                 description=res.description)
+                                            for res in existing_resources]
+
+        def find_matches(match_func):
+            for res_dict in unmatched_res_dicts:
+                for existing_res_dict in unmatched_existing_res_dicts:
+                    if match_func(res_dict, existing_res_dict):
+                        res_dict['id'] = existing_res_dict['id']
+                        unmatched_existing_res_dicts.remove(existing_res_dict)
+                        unmatched_res_dicts.remove(res_dict)
+        find_matches(lambda res1, res2: res1['url'] == res2['url'] and
+                     res1.get('name') == res2['name'] and
+                     res1.get('description') == res2['description'])
+        find_matches(lambda res1, res2: res1['url'] == res2['url'])
+        log.info('Matched resources to existing ones: %s/%s',
+                 len(res_dicts)-len(unmatched_res_dicts), len(res_dicts))
 
 
 class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
