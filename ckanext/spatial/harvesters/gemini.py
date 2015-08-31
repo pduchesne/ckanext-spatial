@@ -1010,6 +1010,10 @@ class GeminiHarvester(SpatialHarvester):
         :returns: None
         '''
         unmatched_res_dicts = [res_dict for res_dict in res_dicts]
+        if not unmatched_res_dicts:
+            log.info('Resource IDs exist alread (%s resources)',
+                     len(res_dicts))
+            return
         if existing_resources and isinstance(existing_resources[0], dict):
             unmatched_existing_res_dicts = [res_dict
                                             for res_dict in existing_resources]
@@ -1020,12 +1024,13 @@ class GeminiHarvester(SpatialHarvester):
                                             for res in existing_resources]
 
         def find_matches(match_func):
-            for res_dict in unmatched_res_dicts:
+            for res_dict in unmatched_res_dicts[:]:
                 for existing_res_dict in unmatched_existing_res_dicts:
                     if match_func(res_dict, existing_res_dict):
                         res_dict['id'] = existing_res_dict['id']
                         unmatched_existing_res_dicts.remove(existing_res_dict)
                         unmatched_res_dicts.remove(res_dict)
+                        break
         find_matches(lambda res1, res2: res1['url'] == res2['url'] and
                      res1.get('name') == res2['name'] and
                      res1.get('description') == res2['description'])
