@@ -106,6 +106,7 @@ class SpatialHarvester(object):
             log.debug('WMS check url: %s', capabilities_url)
             try:
                 res = urllib2.urlopen(capabilities_url, None, 10)
+                xml = res.read()
             except urllib2.HTTPError, e:
                 # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
                 log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
@@ -119,7 +120,6 @@ class SpatialHarvester(object):
             except httplib.HTTPException, e:
                 log.info('WMS check for %s failed due to HTTP error "%s".', capabilities_url, e)
                 return False
-            xml = res.read()
             if not xml.strip():
                 log.info('WMS check for %s failed due to empty response')
                 return False
@@ -184,6 +184,7 @@ class SpatialHarvester(object):
             capabilities_url = re.sub('&version=[^&]+', '', capabilities_url)
             try:
                 res = urllib2.urlopen(capabilities_url, None, 10)
+                xml_str = res.read()
             except urllib2.HTTPError, e:
                 # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
                 log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
@@ -197,7 +198,6 @@ class SpatialHarvester(object):
             except httplib.HTTPException, e:
                 log.info('WMS check for %s failed due to HTTP error "%s".', capabilities_url, e)
                 return False
-            xml_str = res.read()
             parser = etree.XMLParser(remove_blank_text=True)
             try:
                 xml_tree = etree.fromstring(xml_str, parser=parser)
@@ -275,6 +275,7 @@ class SpatialHarvester(object):
         '''
         try:
             http_response = urllib2.urlopen(url)
+            content = http_response.read()
         except urllib2.HTTPError, e:
             raise GetContentError('Server responded with an error when accessing URL: %s Status: %s Reason: %r' % \
                    (url, e.code, e.msg))
@@ -291,7 +292,7 @@ class SpatialHarvester(object):
         except httplib.HTTPException, e:
             log.info('HTTP access of %s failed due to HTTP error "%s".', url, e)
             return False
-        return (http_response.read(), http_response.geturl())
+        return (content, http_response.geturl())
 
 class GeminiHarvester(SpatialHarvester):
     '''Base class for spatial harvesting GEMINI2 documents for the UK Location
