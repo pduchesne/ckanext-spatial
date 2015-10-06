@@ -18,7 +18,7 @@ from ckanext.harvest.model import (setup as harvest_model_setup,
                                    HarvestCoupledResource, HarvestGatherError)
 from ckanext.spatial.validation import Validators, SchematronValidator
 from ckanext.spatial.harvesters.gemini import (GeminiCswHarvester, GeminiDocHarvester,
-                                               GeminiWafHarvester, SpatialHarvester,
+                                               GeminiWafHarvester, GeminiSpatialHarvester,
                                                GeminiHarvester)
 from ckanext.spatial.model.package_extent import setup as spatial_db_setup
 from ckanext.spatial.tests.base import SpatialTestBase
@@ -146,7 +146,7 @@ class TestHarvest(HarvestFixtureBase):
 
     @classmethod
     def setup_class(cls):
-        SpatialHarvester._validator = Validators(profiles=['gemini2'])
+        GeminiSpatialHarvester._validator = Validators(profiles=['gemini2'])
         HarvestFixtureBase.setup_class()
 
     def test_harvest_basic(self):
@@ -1293,7 +1293,7 @@ class TestValidation(HarvestFixtureBase):
 
     @classmethod
     def setup_class(cls):
-        SpatialHarvester._validator = Validators(profiles=['iso19139eden', 'constraints-1.4', 'gemini2'])
+        GeminiSpatialHarvester._validator = Validators(profiles=['iso19139eden', 'constraints-1.4', 'gemini2'])
         HarvestFixtureBase.setup_class()
 
     def get_validation_errors(self, validation_test_filename):

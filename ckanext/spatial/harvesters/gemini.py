@@ -28,29 +28,26 @@ import httplib
 from lxml import etree
 from pylons import config
 from sqlalchemy.sql import update, bindparam
-from sqlalchemy.exc import InvalidRequestError
 from owslib import wms as owslib_wms
 from paste.deploy.converters import asbool
 
 from ckan import model
 from ckan.model import Session, Package
-from ckan.lib.munge import munge_title_to_name
+from ckan.lib.munge import munge_tag
 from ckan.plugins.core import SingletonPlugin, implements
 from ckan.lib.helpers import json
 
 from ckan import logic
 from ckan.logic import get_action, ValidationError
-from ckan.lib.navl.validators import not_empty
-from ckan.lib.munge import substitute_ascii_equivalents
 
 from ckanext.harvest.interfaces import IHarvester
-from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
-                                    HarvestObjectError
+from ckanext.harvest.model import HarvestObject
+from ckanext.harvest.harvesters.base import HarvesterBase
 
 from ckanext.spatial.model import GeminiDocument
 from ckanext.spatial.lib.csw_client import CswService
 from ckanext.spatial.validation import Validators
-from ckanext.spatial.lib.coupled_resource import extract_guid, update_coupled_resources
+from ckanext.spatial.lib.coupled_resource import update_coupled_resources
 
 log = logging.getLogger(__name__)
 
@@ -70,24 +67,17 @@ def text_traceback():
         # way it used inspect on a sqlalchemy detached object
         return traceback.format_exc()
 
-def munge_tag(tag):
-    tag = substitute_ascii_equivalents(tag).lower().strip()
-    return re.sub(r'[^a-zA-Z0-9 -]', '', tag).replace(' ', '-')
-
 
 # When developing, it might be helpful to 'export DEBUG=1' to reraise the
 # exceptions, rather them being caught.
 debug_exception_mode = bool(os.getenv('DEBUG'))
 
-class SpatialHarvester(object):
-    # Q: Why does this not inherit from HarvesterBase in ckanext-harvest?
-    # A: HarvesterBase just provides some useful util methods. The key thing
-    #    a harvester does is it implements(IHarvester).
+class GeminiSpatialHarvester(HarvesterBase):
 
     @classmethod
     def _is_wms(cls, url):
-        '''Given a WMS URL this method returns whether it thinks it is a WMS server
-        or not. It does it by making basic WMS requests.
+        '''Given a WMS URL this method returns whether it thinks it is a WMS
+        server or not. It does it by making basic WMS requests.
         '''
         # Try WMS 1.3 as that is what INSPIRE expects
         is_wms = cls._try_wms_url(url, version='1.3')
@@ -100,7 +90,7 @@ class SpatialHarvester(object):
     @classmethod
     def _try_wms_url(cls, url, version='1.3'):
         # Here's a neat way to run this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._try_wms_url('http://soilbio.nerc.ac.uk/datadiscovery/WebPage5.aspx')"
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import GeminiSpatialHarvester; print GeminiSpatialHarvester._try_wms_url('http://soilbio.nerc.ac.uk/datadiscovery/WebPage5.aspx')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader(version=version).capabilities_url(url)
             log.debug('WMS check url: %s', capabilities_url)
@@ -173,7 +163,7 @@ class SpatialHarvester(object):
         it by making basic WMS requests.
         '''
         # Here's a neat way to test this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import GeminiSpatialHarvester; print GeminiSpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
             # Get rid of the "version=1.1.1" param that OWSLIB adds, because
@@ -238,28 +228,6 @@ class SpatialHarvester(object):
             self._validator = Validators(profiles=profiles)
         return self._validator
 
-    def _save_gather_error(self, message, job):
-        err = HarvestGatherError(message=message, job=job)
-        try:
-            err.save()
-        except InvalidRequestError:
-            Session.rollback()
-            err.save()
-        finally:
-            # No need to alert administrator so don't log as an error, just info
-            log.info(message)
-
-    def _save_object_error(self,message,obj,stage=u'Fetch'):
-        err = HarvestObjectError(message=message,object=obj,stage=stage)
-        try:
-            err.save()
-        except InvalidRequestError,e:
-            Session.rollback()
-            err.save()
-        finally:
-            # No need to alert administrator so don't log as an error, just info
-            log.info(message)
-
     def _get_content(self, url):
         '''
         Requests the URL and returns the response body and the URL (it may
@@ -294,7 +262,8 @@ class SpatialHarvester(object):
             return False
         return (content, http_response.geturl())
 
-class GeminiHarvester(SpatialHarvester):
+
+class GeminiHarvester(GeminiSpatialHarvester):
     '''Base class for spatial harvesting GEMINI2 documents for the UK Location
     Programme. May be easily adaptable for other INSPIRE and spatial projects.
 
@@ -641,15 +610,9 @@ class GeminiHarvester(SpatialHarvester):
         if reactivate_package:
             package_dict['state'] = u'active'
 
-        if package is None or package.title != gemini_values['title']:
-            name = self.gen_new_name(gemini_values['title'])
-            if not name:
-                name = self.gen_new_name(str(gemini_guid))
-            if not name:
-                raise ImportAbort('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
-            package_dict['name'] = name
-        else:
-            package_dict['name'] = package.name
+        package_dict['name'] = self._gen_new_name(
+            gemini_values['title'],
+            package.name if package else None)
 
         resource_locators = gemini_values.get('resource-locator', [])
 
@@ -853,23 +816,6 @@ class GeminiHarvester(SpatialHarvester):
         # to allow both license_id and licence.
 
         return extras
-
-    def gen_new_name(self, title):
-        name = munge_title_to_name(title).replace('_', '-')
-        while '--' in name:
-            name = name.replace('--', '-')
-        like_q = u'%s%%' % name
-        pkg_query = Session.query(Package).filter(Package.name.ilike(like_q)).limit(100)
-        taken = [pkg.name for pkg in pkg_query]
-        if name not in taken:
-            return name
-        else:
-            counter = 1
-            while counter < 101:
-                if name+str(counter) not in taken:
-                    return name+str(counter)
-                counter = counter + 1
-            return None
 
     @classmethod
     def _extract_licence_urls(cls, licences):
