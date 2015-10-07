@@ -1283,6 +1283,15 @@ class TestImportStageTools:
                      ({'licence': ['http://use-constraints'],
                        'licence_url': 'http://anchor'}))
 
+    def test_licence_non_url_anchor(self):
+        # Anchor is not in fact a URL, so is recorded in 'licence' rather than
+        # 'licence_url'
+        gemini = {'use_constraints': [],
+                  'anchor_href': 'should be a url',
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['should be a url']}))
+
     def test_match_resources_with_existing_ones(self):
         res_dicts = [{'url': 'url1', 'name': 'name', 'description': 'desc'},
                      {'url': 'url3', 'name': 'name', 'description': 'desc'},

@@ -789,10 +789,15 @@ class GeminiHarvester(GeminiSpatialHarvester):
             use_constraints = [anchor_title]
             anchor_title = None
         if anchor_href:
-            if anchor_title:
-                urls.append((anchor_href, anchor_title))
+            if cls._is_url(anchor_href):
+                if anchor_title:
+                    urls.append((anchor_href, anchor_title))
+                else:
+                    urls.append(anchor_href)
             else:
-                urls.append(anchor_href)
+                # it should be a url, but since its not, we shouldn't record it
+                # as one else it will appear as a bad relative link on DGU
+                free_text.append(anchor_href)
         for use_constraint in use_constraints:
             if cls._is_url(use_constraint):
                 urls.append(use_constraint)
