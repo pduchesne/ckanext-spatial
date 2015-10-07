@@ -1105,6 +1105,7 @@ class TestGatherMethods(HarvestFixtureBase):
         res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
         assert_equal(self.get_gather_error(), 'Content is not a valid XML document (TESTURL): EntityRef: expecting \';\', line 2, column 80')
 
+
 class TestImportStageTools:
     def test_licence_url_normal(self):
         assert_equal(GeminiHarvester._extract_licence_urls(
@@ -1268,6 +1269,19 @@ class TestImportStageTools:
         assert_equal(GeminiHarvester._process_licence(**gemini),
                      ({'licence': ['The terms'],
                        'licence_url': 'http://license.com/terms.html'}))
+
+    def test_licence_anchor3(self):
+        # 2 URLS - in user constraints free text AND anchor
+        # Again from locationmde.data.gov.uk
+        # Use contraints = 'http://use-constraints'
+        # Use contraints anchor = 'http://anchor'
+        # Limitations on public access = 'None'
+        gemini = {'use_constraints': ['http://use-constraints'],
+                  'anchor_href': 'http://anchor',
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['http://use-constraints'],
+                       'licence_url': 'http://anchor'}))
 
     def test_match_resources_with_existing_ones(self):
         res_dicts = [{'url': 'url1', 'name': 'name', 'description': 'desc'},

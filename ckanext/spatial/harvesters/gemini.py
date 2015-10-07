@@ -798,7 +798,6 @@ class GeminiHarvester(GeminiSpatialHarvester):
                 urls.append(use_constraint)
             else:
                 free_text.append(use_constraint)
-        extras['licence'] = free_text or ''
         if urls:
             # first url goes in the licence_url field
             url = urls[0]
@@ -809,7 +808,8 @@ class GeminiHarvester(GeminiSpatialHarvester):
                 extras['licence_url'] = url
             # subsequent urls just go in the licence field
             for url in urls[1:]:
-                extras['licence'].append(url)
+                free_text.append(url)
+        extras['licence'] = free_text or ''
 
         # TODO try and match a licence_url to an appropriate license_id and
         # save it in the license_id field, but that requires the form schema
