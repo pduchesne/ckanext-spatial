@@ -28,29 +28,26 @@ import httplib
 from lxml import etree
 from pylons import config
 from sqlalchemy.sql import update, bindparam
-from sqlalchemy.exc import InvalidRequestError
 from owslib import wms as owslib_wms
 from paste.deploy.converters import asbool
 
 from ckan import model
 from ckan.model import Session, Package
-from ckan.lib.munge import munge_title_to_name
+from ckan.lib.munge import munge_tag
 from ckan.plugins.core import SingletonPlugin, implements
 from ckan.lib.helpers import json
 
 from ckan import logic
 from ckan.logic import get_action, ValidationError
-from ckan.lib.navl.validators import not_empty
-from ckan.lib.munge import substitute_ascii_equivalents
 
 from ckanext.harvest.interfaces import IHarvester
-from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
-                                    HarvestObjectError
+from ckanext.harvest.model import HarvestObject
+from ckanext.harvest.harvesters.base import HarvesterBase
 
 from ckanext.spatial.model import GeminiDocument
 from ckanext.spatial.lib.csw_client import CswService
 from ckanext.spatial.validation import Validators
-from ckanext.spatial.lib.coupled_resource import extract_guid, update_coupled_resources
+from ckanext.spatial.lib.coupled_resource import update_coupled_resources
 
 log = logging.getLogger(__name__)
 
@@ -70,24 +67,17 @@ def text_traceback():
         # way it used inspect on a sqlalchemy detached object
         return traceback.format_exc()
 
-def munge_tag(tag):
-    tag = substitute_ascii_equivalents(tag).lower().strip()
-    return re.sub(r'[^a-zA-Z0-9 -]', '', tag).replace(' ', '-')
-
 
 # When developing, it might be helpful to 'export DEBUG=1' to reraise the
 # exceptions, rather them being caught.
 debug_exception_mode = bool(os.getenv('DEBUG'))
 
-class SpatialHarvester(object):
-    # Q: Why does this not inherit from HarvesterBase in ckanext-harvest?
-    # A: HarvesterBase just provides some useful util methods. The key thing
-    #    a harvester does is it implements(IHarvester).
+class GeminiSpatialHarvester(HarvesterBase):
 
     @classmethod
     def _is_wms(cls, url):
-        '''Given a WMS URL this method returns whether it thinks it is a WMS server
-        or not. It does it by making basic WMS requests.
+        '''Given a WMS URL this method returns whether it thinks it is a WMS
+        server or not. It does it by making basic WMS requests.
         '''
         # Try WMS 1.3 as that is what INSPIRE expects
         is_wms = cls._try_wms_url(url, version='1.3')
@@ -100,12 +90,13 @@ class SpatialHarvester(object):
     @classmethod
     def _try_wms_url(cls, url, version='1.3'):
         # Here's a neat way to run this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._try_wms_url('http://soilbio.nerc.ac.uk/datadiscovery/WebPage5.aspx')"
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import GeminiSpatialHarvester; print GeminiSpatialHarvester._try_wms_url('http://soilbio.nerc.ac.uk/datadiscovery/WebPage5.aspx')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader(version=version).capabilities_url(url)
             log.debug('WMS check url: %s', capabilities_url)
             try:
                 res = urllib2.urlopen(capabilities_url, None, 10)
+                xml = res.read()
             except urllib2.HTTPError, e:
                 # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
                 log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
@@ -119,7 +110,6 @@ class SpatialHarvester(object):
             except httplib.HTTPException, e:
                 log.info('WMS check for %s failed due to HTTP error "%s".', capabilities_url, e)
                 return False
-            xml = res.read()
             if not xml.strip():
                 log.info('WMS check for %s failed due to empty response')
                 return False
@@ -173,7 +163,7 @@ class SpatialHarvester(object):
         it by making basic WMS requests.
         '''
         # Here's a neat way to test this manually:
-        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import SpatialHarvester; print SpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
+        # python -c "import logging; logging.basicConfig(level=logging.INFO); from ckanext.spatial.harvesters.gemini import GeminiSpatialHarvester; print GeminiSpatialHarvester._wms_base_urls('http://www.ordnancesurvey.co.uk/oswebsite/xml/atom/')"
         try:
             capabilities_url = owslib_wms.WMSCapabilitiesReader().capabilities_url(url)
             # Get rid of the "version=1.1.1" param that OWSLIB adds, because
@@ -184,6 +174,7 @@ class SpatialHarvester(object):
             capabilities_url = re.sub('&version=[^&]+', '', capabilities_url)
             try:
                 res = urllib2.urlopen(capabilities_url, None, 10)
+                xml_str = res.read()
             except urllib2.HTTPError, e:
                 # e.g. http://aws2.caris.com/sfs/services/ows/download/feature/UKHO_TS_DS
                 log.info('WMS check for %s failed due to HTTP error status "%s". Response body: %s', capabilities_url, e, e.read())
@@ -197,7 +188,6 @@ class SpatialHarvester(object):
             except httplib.HTTPException, e:
                 log.info('WMS check for %s failed due to HTTP error "%s".', capabilities_url, e)
                 return False
-            xml_str = res.read()
             parser = etree.XMLParser(remove_blank_text=True)
             try:
                 xml_tree = etree.fromstring(xml_str, parser=parser)
@@ -238,28 +228,6 @@ class SpatialHarvester(object):
             self._validator = Validators(profiles=profiles)
         return self._validator
 
-    def _save_gather_error(self, message, job):
-        err = HarvestGatherError(message=message, job=job)
-        try:
-            err.save()
-        except InvalidRequestError:
-            Session.rollback()
-            err.save()
-        finally:
-            # No need to alert administrator so don't log as an error, just info
-            log.info(message)
-
-    def _save_object_error(self,message,obj,stage=u'Fetch'):
-        err = HarvestObjectError(message=message,object=obj,stage=stage)
-        try:
-            err.save()
-        except InvalidRequestError,e:
-            Session.rollback()
-            err.save()
-        finally:
-            # No need to alert administrator so don't log as an error, just info
-            log.info(message)
-
     def _get_content(self, url):
         '''
         Requests the URL and returns the response body and the URL (it may
@@ -275,6 +243,7 @@ class SpatialHarvester(object):
         '''
         try:
             http_response = urllib2.urlopen(url)
+            content = http_response.read()
         except urllib2.HTTPError, e:
             raise GetContentError('Server responded with an error when accessing URL: %s Status: %s Reason: %r' % \
                    (url, e.code, e.msg))
@@ -291,9 +260,10 @@ class SpatialHarvester(object):
         except httplib.HTTPException, e:
             log.info('HTTP access of %s failed due to HTTP error "%s".', url, e)
             return False
-        return (http_response.read(), http_response.geturl())
+        return (content, http_response.geturl())
 
-class GeminiHarvester(SpatialHarvester):
+
+class GeminiHarvester(GeminiSpatialHarvester):
     '''Base class for spatial harvesting GEMINI2 documents for the UK Location
     Programme. May be easily adaptable for other INSPIRE and spatial projects.
 
@@ -640,15 +610,9 @@ class GeminiHarvester(SpatialHarvester):
         if reactivate_package:
             package_dict['state'] = u'active'
 
-        if package is None or package.title != gemini_values['title']:
-            name = self.gen_new_name(gemini_values['title'])
-            if not name:
-                name = self.gen_new_name(str(gemini_guid))
-            if not name:
-                raise ImportAbort('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
-            package_dict['name'] = name
-        else:
-            package_dict['name'] = package.name
+        package_dict['name'] = self._gen_new_name(
+            gemini_values['title'],
+            package.name if package else None)
 
         resource_locators = gemini_values.get('resource-locator', [])
 
@@ -686,6 +650,10 @@ class GeminiHarvester(SpatialHarvester):
                 view_resources = [r for r in package_dict['resources'] if r['format'] == 'WMS']
                 if len(view_resources):
                     view_resources[0]['ckan_recommended_wms_preview'] = True
+
+        if package:
+            self._match_resources_with_existing_ones(package_dict['resources'],
+                                                     package.resources)
 
         # DGU ONLY: Guess theme from other metadata
         try:
@@ -821,16 +789,20 @@ class GeminiHarvester(SpatialHarvester):
             use_constraints = [anchor_title]
             anchor_title = None
         if anchor_href:
-            if anchor_title:
-                urls.append((anchor_href, anchor_title))
+            if cls._is_url(anchor_href):
+                if anchor_title:
+                    urls.append((anchor_href, anchor_title))
+                else:
+                    urls.append(anchor_href)
             else:
-                urls.append(anchor_href)
+                # it should be a url, but since its not, we shouldn't record it
+                # as one else it will appear as a bad relative link on DGU
+                free_text.append(anchor_href)
         for use_constraint in use_constraints:
             if cls._is_url(use_constraint):
                 urls.append(use_constraint)
             else:
                 free_text.append(use_constraint)
-        extras['licence'] = free_text or ''
         if urls:
             # first url goes in the licence_url field
             url = urls[0]
@@ -841,30 +813,14 @@ class GeminiHarvester(SpatialHarvester):
                 extras['licence_url'] = url
             # subsequent urls just go in the licence field
             for url in urls[1:]:
-                extras['licence'].append(url)
+                free_text.append(url)
+        extras['licence'] = free_text or ''
 
         # TODO try and match a licence_url to an appropriate license_id and
         # save it in the license_id field, but that requires the form schema
         # to allow both license_id and licence.
 
         return extras
-
-    def gen_new_name(self, title):
-        name = munge_title_to_name(title).replace('_', '-')
-        while '--' in name:
-            name = name.replace('--', '-')
-        like_q = u'%s%%' % name
-        pkg_query = Session.query(Package).filter(Package.name.ilike(like_q)).limit(100)
-        taken = [pkg.name for pkg in pkg_query]
-        if name not in taken:
-            return name
-        else:
-            counter = 1
-            while counter < 101:
-                if name+str(counter) not in taken:
-                    return name+str(counter)
-                counter = counter + 1
-            return None
 
     @classmethod
     def _extract_licence_urls(cls, licences):
@@ -935,12 +891,6 @@ class GeminiHarvester(SpatialHarvester):
             action_function = get_action('package_update')
             package_dict['id'] = package.id
 
-            existing_resource_ids = dict((r.url, r.id) for r in package.resources)
-
-            for resource in package_dict['resources']:
-                if resource['url'] in existing_resource_ids:
-                    resource['id'] = existing_resource_ids[resource['url']]
-
         log = logging.getLogger(__name__ + '.import')
         log.info('package_create/update %r %r', context, package_dict)
         try:
@@ -996,6 +946,49 @@ class GeminiHarvester(SpatialHarvester):
             gemini_guid = None
 
         return gemini_string, gemini_guid
+
+    @classmethod
+    def _match_resources_with_existing_ones(cls, res_dicts,
+                                            existing_resources):
+        '''Adds IDs to given resource dicts, based on existing resources, so
+        that when we do package_update the resources are updated rather than
+        deleted and recreated.
+
+        Edits the res_dicts in-place
+
+        :param res_dicts: Resources to have the ID added
+        :param existing_resources: Existing resources - have IDs. dicts or
+                                   Resource objects
+        :returns: None
+        '''
+        unmatched_res_dicts = [res_dict for res_dict in res_dicts]
+        if not unmatched_res_dicts:
+            log.info('Resource IDs exist alread (%s resources)',
+                     len(res_dicts))
+            return
+        if existing_resources and isinstance(existing_resources[0], dict):
+            unmatched_existing_res_dicts = [res_dict
+                                            for res_dict in existing_resources]
+        else:
+            unmatched_existing_res_dicts = [dict(id=res.id, url=res.url,
+                                                 name=res.name,
+                                                 description=res.description)
+                                            for res in existing_resources]
+
+        def find_matches(match_func):
+            for res_dict in unmatched_res_dicts[:]:
+                for existing_res_dict in unmatched_existing_res_dicts:
+                    if match_func(res_dict, existing_res_dict):
+                        res_dict['id'] = existing_res_dict['id']
+                        unmatched_existing_res_dicts.remove(existing_res_dict)
+                        unmatched_res_dicts.remove(res_dict)
+                        break
+        find_matches(lambda res1, res2: res1['url'] == res2['url'] and
+                     res1.get('name') == res2['name'] and
+                     res1.get('description') == res2['description'])
+        find_matches(lambda res1, res2: res1['url'] == res2['url'])
+        log.info('Matched resources to existing ones: %s/%s',
+                 len(res_dicts)-len(unmatched_res_dicts), len(res_dicts))
 
 
 class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):

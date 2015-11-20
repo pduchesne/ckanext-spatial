@@ -18,7 +18,7 @@ from ckanext.harvest.model import (setup as harvest_model_setup,
                                    HarvestCoupledResource, HarvestGatherError)
 from ckanext.spatial.validation import Validators, SchematronValidator
 from ckanext.spatial.harvesters.gemini import (GeminiCswHarvester, GeminiDocHarvester,
-                                               GeminiWafHarvester, SpatialHarvester,
+                                               GeminiWafHarvester, GeminiSpatialHarvester,
                                                GeminiHarvester)
 from ckanext.spatial.model.package_extent import setup as spatial_db_setup
 from ckanext.spatial.tests.base import SpatialTestBase
@@ -146,7 +146,7 @@ class TestHarvest(HarvestFixtureBase):
 
     @classmethod
     def setup_class(cls):
-        SpatialHarvester._validator = Validators(profiles=['gemini2'])
+        GeminiSpatialHarvester._validator = Validators(profiles=['gemini2'])
         HarvestFixtureBase.setup_class()
 
     def test_harvest_basic(self):
@@ -182,47 +182,11 @@ class TestHarvest(HarvestFixtureBase):
 
         assert_equal(len(pkgs), 2)
 
-        resources = Session.query(Resource).all()
-
-        assert_equal(len(resources), 6)
-
         pkg_ids = [pkg.id for pkg in pkgs]
 
         for obj in objects:
             assert obj.current == True
             assert obj.package_id in pkg_ids
-
-        # Harvest again with updated files
-        source_fixture = {
-            'title': 'Test Source Modified',
-            'name': 'test-source-modified',
-            'url': u'http://127.0.0.1:8999/gemini2.1-waf/index-modified.html',
-            'type': u'gemini-waf'
-        }
-
-        source, job = self._create_source_and_job(source_fixture)
-
-        # We need to send an actual job, not the dict
-        object_ids = harvester.gather_stage(job)
-
-        # Fetch stage always returns True for Waf harvesters
-        assert harvester.fetch_stage(object_ids) == True
-
-        objects = []
-        for object_id in object_ids:
-            obj = HarvestObject.get(object_id)
-            assert obj
-            objects.append(obj)
-            harvester.import_stage(obj)
-
-        # Check that there are the same number of packages and resources
-        pkgs = Session.query(Package).all()
-
-        assert_equal(len(pkgs), 2)
-
-        resources = Session.query(Resource).all()
-
-        assert_equal(len(resources), 6)
 
     def test_harvest_fields_service(self):
 
@@ -633,6 +597,46 @@ class TestHarvest(HarvestFixtureBase):
         assert second_obj.current == False
         assert first_obj.current == False
 
+
+    def test_harvest_update_2(self):
+        '''Check that the resources keep their IDs'''
+
+        # First harvest job - to create the dataset
+        source_fixture = {
+            'title': 'Test Source',
+            'name': 'test-source',
+            'url': u'http://127.0.0.1:8999/gemini2.1/dataset1.xml',
+            'type': u'gemini-single'
+        }
+        source, first_job = self._create_source_and_job(source_fixture)
+        first_obj = self._run_job_for_single_document(first_job)
+        first_package_dict = get_action('package_show')(
+            self.context, {'id': first_obj.package_id})
+
+        # Second job - forcing_import=True simulates an update in the package
+        second_job = self._create_job(source.id)
+        second_obj = self._run_job_for_single_document(second_job, force_import=True)
+
+        # For some reason first_obj does not get updated after the import_stage,
+        # and we have to force a refresh to get the actual DB values.
+        Session.remove()
+        Session.add(first_obj)
+        Session.add(second_obj)
+        Session.refresh(first_obj)
+        Session.refresh(second_obj)
+        Session.refresh(model.Package.get(second_obj.package_id))
+
+        second_package_dict = get_action('package_show_rest')(
+            self.context, {'id': second_obj.package_id})
+
+        # Package was updated
+        assert second_package_dict
+        assert second_package_dict['id'] == first_package_dict['id']
+        assert second_package_dict['metadata_modified'] > first_package_dict['metadata_modified']
+
+        # Resource IDs stay the same
+        assert second_package_dict['resources'][0]['id'] == first_package_dict['resources'][0]['id']
+        assert second_package_dict['resources'][0]['url'] == first_package_dict['resources'][0]['url']
 
     def test_harvest_deleted_record(self):
 
@@ -1101,6 +1105,7 @@ class TestGatherMethods(HarvestFixtureBase):
         res = self.harvester.get_gemini_string_and_guid(content, url='TESTURL')
         assert_equal(self.get_gather_error(), 'Content is not a valid XML document (TESTURL): EntityRef: expecting \';\', line 2, column 80')
 
+
 class TestImportStageTools:
     def test_licence_url_normal(self):
         assert_equal(GeminiHarvester._extract_licence_urls(
@@ -1265,11 +1270,53 @@ class TestImportStageTools:
                      ({'licence': ['The terms'],
                        'licence_url': 'http://license.com/terms.html'}))
 
+    def test_licence_anchor3(self):
+        # 2 URLS - in user constraints free text AND anchor
+        # Again from locationmde.data.gov.uk
+        # Use contraints = 'http://use-constraints'
+        # Use contraints anchor = 'http://anchor'
+        # Limitations on public access = 'None'
+        gemini = {'use_constraints': ['http://use-constraints'],
+                  'anchor_href': 'http://anchor',
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['http://use-constraints'],
+                       'licence_url': 'http://anchor'}))
+
+    def test_licence_non_url_anchor(self):
+        # Anchor is not in fact a URL, so is recorded in 'licence' rather than
+        # 'licence_url'
+        gemini = {'use_constraints': [],
+                  'anchor_href': 'should be a url',
+                  'anchor_title': None}
+        assert_equal(GeminiHarvester._process_licence(**gemini),
+                     ({'licence': ['should be a url']}))
+
+    def test_match_resources_with_existing_ones(self):
+        res_dicts = [{'url': 'url1', 'name': 'name', 'description': 'desc'},
+                     {'url': 'url3', 'name': 'name', 'description': 'desc'},
+                     {'url': 'url2', 'name': 'name', 'description': 'desc'},
+                     {'url': 'url4', 'name': 'name', 'description': 'desc'},
+                     ]
+        existing_resources = [
+            {'id': '1', 'url': 'url1', 'name': 'name', 'description': 'desc'},
+            {'id': 'BAD', 'url': 'BAD', 'name': 'name', 'description': 'desc'},
+            {'id': '2', 'url': 'url2', 'name': 'BAD', 'description': 'desc'},
+            {'id': '4', 'url': 'url4', 'name': 'BAD', 'description': 'desc'},
+            ]
+        GeminiHarvester._match_resources_with_existing_ones(
+            res_dicts, existing_resources)
+        assert_equal(res_dicts[0].get('id'), '1')
+        assert_equal(res_dicts[1].get('id'), None)
+        assert_equal(res_dicts[2].get('id'), '2')
+        assert_equal(res_dicts[3].get('id'), '4')
+
+
 class TestValidation(HarvestFixtureBase):
 
     @classmethod
     def setup_class(cls):
-        SpatialHarvester._validator = Validators(profiles=['iso19139eden', 'constraints-1.4', 'gemini2'])
+        GeminiSpatialHarvester._validator = Validators(profiles=['iso19139eden', 'constraints-1.4', 'gemini2'])
         HarvestFixtureBase.setup_class()
 
     def get_validation_errors(self, validation_test_filename):
