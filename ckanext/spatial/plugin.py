@@ -3,10 +3,7 @@ import re
 from logging import getLogger
 from pylons import config
 from pylons.i18n import _
-from genshi.input import HTML
-from genshi.filters import Transformer
 
-from ckan.lib.search import SearchError, PackageSearchQuery
 from ckan.lib.helpers import json
 
 from ckan import plugins as p
@@ -39,10 +36,8 @@ def check_geoalchemy_requirement():
         except ImportError:
             raise ImportError(msg.format('geoalchemy'))
 
-check_geoalchemy_requirement()
 
-from ckanext.spatial.lib import save_package_extent,validate_bbox, bbox_query, bbox_query_ordered
-from ckanext.spatial.model.package_extent import setup as setup_model
+check_geoalchemy_requirement()
 
 log = getLogger(__name__)
 
@@ -74,9 +69,9 @@ class SpatialMetadata(p.SingletonPlugin):
     p.implements(p.IRoutes, inherit=True)
 
     def configure(self, config):
+        from ckanext.spatial.model.package_extent import setup as setup_model
         if not config.get('ckan.spatial.testing',False):
             setup_model()
-
 
     def create(self, package):
         self.check_spatial_extra(package)
@@ -89,6 +84,8 @@ class SpatialMetadata(p.SingletonPlugin):
         For a given package, looks at the spatial extent (as given in the
         extra "spatial" in GeoJSON format) and records it in PostGIS.
         '''
+        from ckanext.spatial.lib import save_package_extent
+
         if not package.id:
             log.warning('Couldn\'t store spatial extent because no id was provided for the package')
             return
@@ -127,6 +124,7 @@ class SpatialMetadata(p.SingletonPlugin):
 
 
     def delete(self, package):
+        from ckanext.spatial.lib import save_package_extent
         save_package_extent(package.id,None)
 
     def before_map(self, route_map):
@@ -159,6 +157,7 @@ class SpatialQuery(p.SingletonPlugin):
         return map
 
     def before_search(self,search_params):
+        from ckanext.spatial.lib import validate_bbox, bbox_query, bbox_query_ordered
         if 'extras' in search_params and 'ext_bbox' in search_params['extras'] \
             and search_params['extras']['ext_bbox']:
 
@@ -208,6 +207,8 @@ class SpatialQuery(p.SingletonPlugin):
         return search_params
 
     def after_search(self, search_results, search_params):
+        from ckan.lib.search import SearchError, PackageSearchQuery
+
         if search_params.get('extras', {}).get('ext_spatial'):
             # Apply the spatial sort
             querier = PackageSearchQuery()
@@ -296,4 +297,3 @@ class HarvestMetadataApi(p.SingletonPlugin):
             config['extra_template_paths'] += ','+template_dir
         else:
             config['extra_template_paths'] = template_dir
-
