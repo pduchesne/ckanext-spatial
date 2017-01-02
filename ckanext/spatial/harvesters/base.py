@@ -321,20 +321,20 @@ class SpatialHarvester(HarvesterBase):
         else:
             extras['resource-type'] = ''
 
-        extras['licence'] = iso_values.get('use-constraints', '')
+        extras['license'] = iso_values.get('use-constraints', '')
         if harvest_object.raw_metadata_request: extras['metadata_request'] = harvest_object.raw_metadata_request
 
-        def _extract_first_license_url(licences):
-            for licence in licences:
-                o = urlparse(licence)
+        def _extract_first_license_url(licenses):
+            for license in licenses:
+                o = urlparse(license)
                 if o.scheme and o.netloc:
-                    return licence
+                    return license
             return None
 
-        if len(extras['licence']):
-            license_url_extracted = _extract_first_license_url(extras['licence'])
+        if len(extras['license']):
+            license_url_extracted = _extract_first_license_url(extras['license'])
             if license_url_extracted:
-                extras['licence_url'] = license_url_extracted
+                extras['license_url'] = license_url_extracted
 
         extras['access_constraints'] = iso_values.get('limitations-on-public-access', '')
 
