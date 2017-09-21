@@ -76,9 +76,11 @@ def guess_resource_format(url, protocol, use_mimetypes=True):
     protocol_types = {
         # OGC
         'wms': ('OGC:WMS',),
+        'wmts': ('OGC:WMTS',),
         'wfs': ('OGC:WFS',),
         'wcs': ('OGC:WCS',),
         'kml': ('KML',),
+        'arcgis_rest': ('ESRI:REST',),
         }
 
     for resource_type, parts in protocol_types.iteritems():
@@ -93,7 +95,8 @@ def guess_resource_format(url, protocol, use_mimetypes=True):
 
     base_resource_types = {
         # OGC
-        'wms': ('geoserver/wms', 'mapserver/wmsserver', 'com.esri.wms.Esrimap', '/wms'),
+        'wmts': ('geoserver/wmts', '/wmts'),
+        'wms': ('geoserver/wms', 'mapserver/wmsserver', 'com.esri.wms.Esrimap', '/wms', '/wms'),
         'wfs': ('geoserver/wfs', 'mapserver/wfsserver', 'com.esri.wfs.Esrimap', '/wfs'),
         'wcs': ('geoserver/wcs', 'imageserver/wcsserver', 'mapserver/wcsserver', '/wcs'),
         # ESRI
@@ -104,6 +107,7 @@ def guess_resource_format(url, protocol, use_mimetypes=True):
 
     query_resource_types = {
         # OGC
+        'wmts': ('service=wmts',),
         'wms': ('service=wms',),
         'wfs': ('service=wfs',),
         'wcs': ('service=wcs',),
