@@ -100,7 +100,7 @@ def guess_resource_format(url, protocol, use_mimetypes=True):
         'wfs': ('geoserver/wfs', 'mapserver/wfsserver', 'com.esri.wfs.Esrimap', '/wfs'),
         'wcs': ('geoserver/wcs', 'imageserver/wcsserver', 'mapserver/wcsserver', '/wcs'),
         # ESRI
-        'kml': ('mapserver/generatekml',),
+        #'kml': ('mapserver/generatekml',),
         'arcims': ('com.esri.esrimap.esrimap',),
         'arcgis_rest': ('arcgis/rest/services',),
     }
