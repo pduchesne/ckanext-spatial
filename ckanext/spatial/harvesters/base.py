@@ -383,8 +383,6 @@ class SpatialHarvester(HarvesterBase):
 
         '''
 
-        operations = iso_values.get('resource-operations', [])
-
         resource_locators = iso_values.get('resource-locator', []) +\
             iso_values.get('resource-locator-identification', [])
 
