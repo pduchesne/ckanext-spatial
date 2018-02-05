@@ -507,7 +507,9 @@ class SpatialHarvester(HarvesterBase):
 
         self._set_source_config(harvest_object.source.config)
 
-        if self.force_import:
+        force_import = self.source_config.get('force_import', False) or self.force_import
+
+        if force_import:
             status = 'change'
         else:
             status = self._get_object_extra(harvest_object, 'status')
@@ -573,7 +575,7 @@ class SpatialHarvester(HarvesterBase):
             return False
 
         # Flag previous object as not current anymore
-        if previous_object and not self.force_import:
+        if previous_object and not force_import:
             previous_object.current = False
             previous_object.add()
 
@@ -673,7 +675,7 @@ class SpatialHarvester(HarvesterBase):
         elif status == 'change':
 
             # Check if the modified date is more recent
-            if not self.force_import and previous_object and harvest_object.metadata_modified_date <= previous_object.metadata_modified_date:
+            if not force_import and previous_object and harvest_object.metadata_modified_date <= previous_object.metadata_modified_date:
 
                 # Assign the previous job id to the new object to
                 # avoid losing history
