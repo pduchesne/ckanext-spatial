@@ -325,20 +325,20 @@ class SpatialHarvester(HarvesterBase):
         else:
             extras['resource-type'] = ''
 
-        extras['licence'] = iso_values.get('use-constraints', '')
+        extras['license'] = iso_values.get('use-constraints', '')
         if harvest_object.raw_metadata_request: extras['metadata_request'] = harvest_object.raw_metadata_request
 
-        def _extract_first_license_url(licences):
-            for licence in licences:
-                o = urlparse(licence)
+        def _extract_first_license_url(licenses):
+            for license in licenses:
+                o = urlparse(license)
                 if o.scheme and o.netloc:
-                    return licence
+                    return license
             return None
 
-        if len(extras['licence']):
-            license_url_extracted = _extract_first_license_url(extras['licence'])
+        if len(extras['license']):
+            license_url_extracted = _extract_first_license_url(extras['license'])
             if license_url_extracted:
-                extras['licence_url'] = license_url_extracted
+                extras['license_url'] = license_url_extracted
 
 
         # Metadata license ID check for package
@@ -533,7 +533,9 @@ class SpatialHarvester(HarvesterBase):
 
         self._set_source_config(harvest_object.source.config)
 
-        if self.force_import:
+        force_import = self.source_config.get('force_import', False) or self.force_import
+
+        if force_import:
             status = 'change'
         else:
             status = self._get_object_extra(harvest_object, 'status')
@@ -599,7 +601,7 @@ class SpatialHarvester(HarvesterBase):
             return False
 
         # Flag previous object as not current anymore
-        if previous_object and not self.force_import:
+        if previous_object and not force_import:
             previous_object.current = False
             previous_object.add()
 
@@ -699,7 +701,7 @@ class SpatialHarvester(HarvesterBase):
         elif status == 'change':
 
             # Check if the modified date is more recent
-            if not self.force_import and previous_object and harvest_object.metadata_modified_date <= previous_object.metadata_modified_date:
+            if not force_import and previous_object and harvest_object.metadata_modified_date <= previous_object.metadata_modified_date:
 
                 # Assign the previous job id to the new object to
                 # avoid losing history
