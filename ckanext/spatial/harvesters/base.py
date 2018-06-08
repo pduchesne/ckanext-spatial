@@ -426,7 +426,7 @@ class SpatialHarvester(HarvesterBase):
             resource_locators.append(operations.get('GetCapabilities').get('connectPoint')[0])
 
         # keep track of service URLs already processed to avoid duplicates
-        processedUrls = []
+        processedUrls = {}
 
         if len(resource_locators):
             for resource_locator in resource_locators:
@@ -437,26 +437,36 @@ class SpatialHarvester(HarvesterBase):
                     # remove query for OGC services
                     url = url.split('?')[0] if '?' in url else url
 
-                if url and url not in processedUrls:
-                    resource = {}
-                    resource['format'] = format
-                    if resource['format'] == 'wms' and config.get('ckanext.spatial.harvest.validate_wms', False):
-                        # Check if the service is a view service
-                        test_url = url.split('?')[0] if '?' in url else url
-                        if self._is_wms(test_url):
-                            resource['verified'] = True
-                            resource['verified_date'] = datetime.now().isoformat()
-                    processedUrls.append(url)
+                if url:
+                    if (format,url) not in processedUrls:
+                        resource = {}
+                        resource['format'] = format
+                        if resource['format'] == 'wms' and config.get('ckanext.spatial.harvest.validate_wms', False):
+                            # Check if the service is a view service
+                            test_url = url.split('?')[0] if '?' in url else url
+                            if self._is_wms(test_url):
+                                resource['verified'] = True
+                                resource['verified_date'] = datetime.now().isoformat()
 
-                    resource.update(
-                        {
-                            'url': url,
-                            'name': resource_locator.get('name') or p.toolkit._('Unnamed resource'),
-                            'description': resource_locator.get('description') or  '',
-                            'resource_locator_protocol': resource_locator.get('protocol') or '',
-                            'resource_locator_function': resource_locator.get('function') or '',
-                        })
-                    package_dict['resources'].append(resource)
+                        resource.update(
+                            {
+                                'url': url,
+                                'name': resource_locator.get('name') or p.toolkit._('Unnamed resource'),
+                                'description': resource_locator.get('description') or  '',
+                                'resource_locator_protocol': resource_locator.get('protocol') or '',
+                                'resource_locator_function': resource_locator.get('function') or '',
+                            })
+
+                        processedUrls[ (format,url) ] = resource
+
+                        package_dict['resources'].append(resource)
+
+                    if extras['resource-type'] != 'service' and \
+                       'name' in resource_locator and \
+                       any(part in protocol for part in ['http-get-map', 'http-get-feature', 'http-describefeaturetype']):
+                        # this is a  http-get-* operation on a dataset, its name must be the OGC layer of feature type name
+                        processedUrls[ (format,url) ]['service_resource_name'] = resource_locator.get('name')
+
 
 
         # Add default_extras from config
@@ -510,10 +520,12 @@ class SpatialHarvester(HarvesterBase):
 
         self._set_source_config(harvest_object.source.config)
 
-        if self.force_import:
+        force_import = self.source_config.get('force_import', False) or self.force_import
+
+        status = self._get_object_extra(harvest_object, 'status')
+        if force_import and not status == 'new':
             status = 'change'
-        else:
-            status = self._get_object_extra(harvest_object, 'status')
+
 
         # Get the last harvested object (if any)
         previous_object = model.Session.query(HarvestObject) \
