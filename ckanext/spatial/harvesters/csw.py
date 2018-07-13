@@ -114,6 +114,8 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
         delete = guids_in_db - guids_in_harvest
         change = guids_in_db & guids_in_harvest
 
+        log.info('Received %s CSW records to harvest, %s new, %s to delete, %s to update', len(guids_in_harvest), len(new), len(delete), len(change))
+
         ids = []
         for guid in new:
             obj = HarvestObject(guid=guid, job=harvest_job,
