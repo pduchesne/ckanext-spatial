@@ -678,6 +678,7 @@ class ISODocument(MappedXmlDocument):
         ISOResponsibleParty(
             name="contact-organisation",
             search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue=\"pointOfContact\"]]",
                 "gmd:contact/gmd:CI_ResponsibleParty",
                 ],
             multiplicity="1..*",

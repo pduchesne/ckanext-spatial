@@ -266,7 +266,7 @@ class SpatialHarvester(HarvesterBase):
         if package is None or package.title != iso_values['title']:
             name = self._gen_new_name(iso_values['title'])
             if not name:
-                name = self._gen_new_name(str(iso_values['guid']))
+            name = self._gen_new_name(str(iso_values['guid']))
             if not name:
                 raise Exception('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
             package_dict['name'] = name
@@ -276,8 +276,9 @@ class SpatialHarvester(HarvesterBase):
         # ODVL custom
         package_dict['author'] = iso_values['contact']
         package_dict['author_email'] = iso_values['contact-email']
-        package_dict['maintainer'] = iso_values['custodian-name']
-        package_dict['maintainer_email'] = iso_values['custodian-email']
+        # contact details (i.e. with role=PointOfContact) are used before custodian details, as per the VODAP mapping doc. Correct ?
+        package_dict['maintainer'] = iso_values['contact'] or iso_values['custodian-name']
+        package_dict['maintainer_email'] = iso_values['contact-email'] or iso_values['custodian-email']
 
 
         extras = {
@@ -302,11 +303,11 @@ class SpatialHarvester(HarvesterBase):
             extras[name] = iso_values[name]
 
         if len(iso_values.get('dataset-publication-date',[])):
-            extras['dataset-publication-date'] = iso_values['dataset-publication-date'][0]['value']
+            extras['issued'] = iso_values['dataset-publication-date'][0]['value']
         if len(iso_values.get('dataset-revision-date',[])):
-            extras['dataset-revision-date'] = iso_values['dataset-revision-date'][0]['value']
+            extras['modified'] = iso_values['dataset-revision-date'][0]['value']
         if len(iso_values.get('edition',[])):
-            extras['edition'] = iso_values['edition'][0]
+            extras['version'] = iso_values['edition'][0]
         if len(iso_values.get('extent-free-text',[])):
             extras['geographic-description'] = iso_values['extent-free-text'][0]
         if len(iso_values.get('keyword-gemet-theme',[])):
