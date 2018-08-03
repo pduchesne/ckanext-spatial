@@ -266,7 +266,7 @@ class SpatialHarvester(HarvesterBase):
         if package is None or package.title != iso_values['title']:
             name = self._gen_new_name(iso_values['title'])
             if not name:
-            name = self._gen_new_name(str(iso_values['guid']))
+                name = self._gen_new_name(str(iso_values['guid']))
             if not name:
                 raise Exception('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
             package_dict['name'] = name
