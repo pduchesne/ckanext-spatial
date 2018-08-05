@@ -293,7 +293,7 @@ class SpatialHarvester(HarvesterBase):
             'guid',
             # Usefuls
             'dataset-reference-date',
-            'metadata-language',  # Language
+            #'metadata-language',  # Language
             'metadata-date',  # Released
             'coupled-resource',
             'contact-email',
@@ -302,12 +302,16 @@ class SpatialHarvester(HarvesterBase):
         ]:
             extras[name] = iso_values[name]
 
+        # align this extra field with ckanext-dcat, as per the VODAP mapping definition
+        extras['language'] = iso_values['metadata-language']
+
         if len(iso_values.get('dataset-publication-date',[])):
             extras['issued'] = iso_values['dataset-publication-date'][0]['value']
         if len(iso_values.get('dataset-revision-date',[])):
             extras['modified'] = iso_values['dataset-revision-date'][0]['value']
         if len(iso_values.get('edition',[])):
-            extras['version'] = iso_values['edition'][0]
+            # store edition in core ckan version, as per the VODAP mapping definition
+            package_dict['version'] = iso_values['edition'][0]
         if len(iso_values.get('extent-free-text',[])):
             extras['geographic-description'] = iso_values['extent-free-text'][0]
         if len(iso_values.get('keyword-gemet-theme',[])):
