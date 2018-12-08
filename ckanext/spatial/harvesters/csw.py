@@ -70,12 +70,6 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
 
         self._set_source_config(harvest_job.source.config)
 
-        try:
-            self._setup_csw_client(url)
-        except Exception, e:
-            self._save_gather_error('Error contacting the CSW server: %s' % e, harvest_job)
-            return None
-
         query = model.Session.query(HarvestObject.guid, HarvestObject.package_id).\
                                     filter(HarvestObject.current==True).\
                                     filter(HarvestObject.harvest_source_id==harvest_job.source.id)
@@ -85,14 +79,36 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
             guid_to_package_id[guid] = package_id
 
         guids_in_db = set(guid_to_package_id.keys())
-
-        # extract cql filter if any
-        cql = self.source_config.get('cql')
-
         log.debug('Starting gathering for %s' % url)
         guids_in_harvest = set()
+
+        is_static_xml = self.source_config.get('staticxml')
+
         try:
-            for identifier in self.csw.getidentifiers(page=10, outputschema=self.output_schema(), cql=cql):
+            if is_static_xml:
+                self._setup_csw_client(None)
+                csw = self.csw._Implementation(None, timeout=60, skip_caps=True)
+
+                csw.request = url
+                csw._invoke()
+                csw.records = {}
+                from owslib.csw import namespaces
+
+                csw._parserecords(namespaces[self.output_schema()], 'brief')
+                csw_identifiers = csw.records.keys()
+            else:
+                try:
+                    self._setup_csw_client(url)
+                except Exception, e:
+                    self._save_gather_error('Error contacting the CSW server: %s' % e, harvest_job)
+                    return None
+
+                # extract cql filter if any
+                cql = self.source_config.get('cql')
+
+                csw_identifiers = self.csw.getidentifiers(page=10, outputschema=self.output_schema(), cql=cql)
+
+            for identifier in csw_identifiers:
                 try:
                     log.info('Got identifier %s from the CSW', identifier)
                     if identifier is None:
@@ -157,34 +173,50 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
         log.debug('CswHarvester fetch_stage for object: %s', harvest_object.id)
 
         url = harvest_object.source.url
-        try:
-            self._setup_csw_client(url)
-        except Exception, e:
-            self._save_object_error('Error contacting the CSW server: %s' % e,
-                                    harvest_object)
-            return False
+        self._set_source_config(harvest_object.job.source.config)
+        is_static_xml = self.source_config.get('staticxml')
 
         identifier = harvest_object.guid
-        try:
-            record = self.csw.getrecordbyid([identifier], outputschema=self.output_schema())
 
-            from owslib.util import bind_url
-            from owslib import csw
+        if is_static_xml:
+            self._setup_csw_client(None)
+            csw = self.csw._Implementation(None, timeout=60, skip_caps=True)
 
-            data = {
-                'service': 'CSW', # self.csw.service,
-                'version': '2.0.2', #self.csw.version,
-                'request': 'GetRecordById',
-                'outputFormat': 'application/xml',
-                'outputSchema': csw.get_namespaces()[self.output_schema()],
-                'elementsetname': "full",
-                'id': '',
-                }
+            csw.request = url
+            csw._invoke()
+            csw.records = {}
+            from owslib.csw import namespaces
 
-            original_request = '%s%s%s' % (bind_url(url), urllib.urlencode(data), identifier)
-        except Exception, e:
-            self._save_object_error('Error getting the CSW record with GUID %s' % identifier, harvest_object)
-            return False
+            csw._parserecords(namespaces[self.output_schema()], 'brief')
+            record = self.csw._xmd(csw.records[identifier])
+        else:
+            try:
+                self._setup_csw_client(url)
+            except Exception, e:
+                self._save_object_error('Error contacting the CSW server: %s' % e,
+                                        harvest_object)
+                return False
+
+            try:
+                record = self.csw.getrecordbyid([identifier], outputschema=self.output_schema())
+            except Exception, e:
+                self._save_object_error('Error getting the CSW record with GUID %s' % identifier, harvest_object)
+                return False
+
+        from owslib.util import bind_url
+        from owslib import csw
+
+        data = {
+            'service': 'CSW', # self.csw.service,
+            'version': '2.0.2', #self.csw.version,
+            'request': 'GetRecordById',
+            'outputFormat': 'application/xml',
+            'outputSchema': csw.get_namespaces()[self.output_schema()],
+            'elementsetname': "full",
+            'id': '',
+            }
+
+        original_request = '%s%s%s' % (bind_url(url), urllib.urlencode(data), identifier)
 
         if record is None:
             self._save_object_error('Empty record for GUID %s' % identifier,
