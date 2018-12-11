@@ -273,18 +273,28 @@ class SpatialHarvester(HarvesterBase):
         else:
             package_dict['name'] = package.name
 
-        # ODVL custom
-        package_dict['author'] = iso_values['contact']
-        package_dict['author_email'] = iso_values['contact-email']
-        # contact details (i.e. with role=PointOfContact) are used before custodian details, as per the VODAP mapping doc. Correct ?
-        package_dict['maintainer'] = iso_values['contact'] or iso_values['custodian-name']
-        package_dict['maintainer_email'] = iso_values['contact-email'] or iso_values['custodian-email']
-
 
         extras = {
             'guid': harvest_object.guid,
             'spatial_harvester': True,
         }
+
+        # ODVL custom
+        package_dict['author'] = iso_values['contact']
+        package_dict['author_email'] = iso_values['contact-email']
+        # contact details (i.e. with role=PointOfContact) are used before custodian details, as per the VODAP mapping doc. Correct ?
+
+        contact = self.pick_first_resp_party(iso_values, ['pointOfContact', 'custodian'])
+        if contact is not None:
+            extras['contact_name'] = contact['name']
+            extras['contact_email'] = contact['email']
+            extras['contact_uri'] = contact['uri']
+
+        contact = self.pick_first_resp_party(iso_values, ['publisher', 'owner'])
+        if contact is not None:
+            extras['publisher_name'] = contact['name']
+            extras['publisher_email'] = contact['email']
+            extras['publisher_uri'] = contact['uri']
 
         # Just add some of the metadata as extras, not the whole lot
         for name in [
@@ -296,7 +306,7 @@ class SpatialHarvester(HarvesterBase):
             #'metadata-language',  # Language
             'metadata-date',  # Released
             'coupled-resource',
-            'contact-email',
+            #'contact-email',
             'frequency-of-update',
             'spatial-data-service-type',
         ]:
@@ -523,6 +533,20 @@ class SpatialHarvester(HarvesterBase):
         package_dict['extras'] = extras_as_dict
 
         return package_dict
+
+    def pick_first_resp_party(self, iso_md, roles):
+        contact = {}
+        for role in roles:
+            if role in iso_md:
+                for responsible_party in iso_md[role]:
+                    if isinstance(responsible_party, dict) and \
+                       isinstance(responsible_party.get('contact-info'), dict):
+                        contact['name'] = responsible_party.get('organisation-name', None) or responsible_party.get('individual-name', None)
+                        contact['email'] = responsible_party['contact-info'].get('email', None)
+                        contact['uri'] = responsible_party['contact-info'].get('online-resource', None)
+                        return contact
+
+        return None
 
     def transform_to_iso(self, original_document, original_format, harvest_object):
         '''

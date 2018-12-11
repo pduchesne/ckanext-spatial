@@ -676,10 +676,9 @@ class ISODocument(MappedXmlDocument):
             multiplicity="0..1",
         ),
         ISOResponsibleParty(
-            name="contact-organisation",
+            name="pointOfContact",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue=\"pointOfContact\"]]",
-                "gmd:contact/gmd:CI_ResponsibleParty",
                 ],
             multiplicity="1..*",
             ),
@@ -687,6 +686,20 @@ class ISODocument(MappedXmlDocument):
             name="custodian",
             search_paths=[
                 "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue=\"custodian\"]]",
+                ],
+            multiplicity="1..*",
+            ),
+        ISOResponsibleParty(
+            name="publisher",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue=\"publisher\"]]",
+                ],
+            multiplicity="1..*",
+            ),
+        ISOResponsibleParty(
+            name="owner",
+            search_paths=[
+                "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue=\"owner\"]]",
                 ],
             multiplicity="1..*",
             ),
@@ -1004,7 +1017,7 @@ class ISODocument(MappedXmlDocument):
         self.infer_url(values)
         # Todo: Infer resources.
         self.infer_tags(values)
-        self.infer_publisher(values)
+        #self.infer_publisher(values)
         self.infer_contact(values)
         self.infer_contact_email(values)
         self.infer_custodian(values)
@@ -1077,7 +1090,7 @@ class ISODocument(MappedXmlDocument):
 
     def infer_contact(self, values):
         value = ''
-        for responsible_party in values['contact-organisation'] + values['responsible-organisation']:
+        for responsible_party in values['pointOfContact'] + values['responsible-organisation']:
             value = responsible_party['organisation-name']
             if value:
                 break
@@ -1085,7 +1098,7 @@ class ISODocument(MappedXmlDocument):
 
     def infer_contact_email(self, values):
         value = ''
-        for responsible_party in values['contact-organisation'] + values['responsible-organisation']:
+        for responsible_party in values['pointOfContact'] + values['responsible-organisation']:
             if isinstance(responsible_party, dict) and \
                isinstance(responsible_party.get('contact-info'), dict) and \
                responsible_party['contact-info'].has_key('email'):
