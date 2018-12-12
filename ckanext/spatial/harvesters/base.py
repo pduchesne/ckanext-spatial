@@ -286,15 +286,15 @@ class SpatialHarvester(HarvesterBase):
 
         contact = self.pick_first_resp_party(iso_values, ['pointOfContact', 'custodian'])
         if contact is not None:
-            extras['contact_name'] = contact['name']
-            extras['contact_email'] = contact['email']
-            extras['contact_uri'] = contact['uri']
+            if ('name' in contact): extras['contact_name'] = contact['name']
+            if ('email' in contact): extras['contact_email'] = contact['email']
+            if ('uri' in contact): extras['contact_uri'] = contact['uri']
 
         contact = self.pick_first_resp_party(iso_values, ['publisher', 'owner'])
         if contact is not None:
-            extras['publisher_name'] = contact['name']
-            extras['publisher_email'] = contact['email']
-            extras['publisher_uri'] = contact['uri']
+            if ('name' in contact): extras['publisher_name'] = contact['name']
+            if ('email' in contact): extras['publisher_email'] = contact['email']
+            if ('uri' in contact): extras['publisher_uri'] = contact['uri']
 
         # Just add some of the metadata as extras, not the whole lot
         for name in [
@@ -403,6 +403,20 @@ class SpatialHarvester(HarvesterBase):
                 else:
                     parties[party['organisation-name']] = [party['role']]
             extras['responsible-party'] = [{'name': k, 'roles': v} for k, v in parties.iteritems()]
+
+        # count parties per role
+        if iso_values['responsible-organisation']:
+            roles = {}
+            for party in iso_values['responsible-organisation']:
+                if party['role'] in roles:
+                    if not party['organisation-name'] in roles[party['role']]:
+                        roles[party['role']].append(party['organisation-name'])
+                else:
+                    roles[party['role']] = [party['organisation-name']]
+            extras['responsible-party'] = [{'name': k, 'roles': v} for k, v in parties.iteritems()]
+
+            for role in roles:
+                extras['total_' + role] = len(roles[role])
 
         if len(iso_values['bbox']) > 0:
             bbox = iso_values['bbox'][0]
@@ -539,11 +553,26 @@ class SpatialHarvester(HarvesterBase):
         for role in roles:
             if role in iso_md:
                 for responsible_party in iso_md[role]:
-                    if isinstance(responsible_party, dict) and \
-                       isinstance(responsible_party.get('contact-info'), dict):
-                        contact['name'] = responsible_party.get('organisation-name', None) or responsible_party.get('individual-name', None)
-                        contact['email'] = responsible_party['contact-info'].get('email', None)
-                        contact['uri'] = responsible_party['contact-info'].get('online-resource', None)
+                    if isinstance(responsible_party, dict):
+
+                        if 'organisation-name' in responsible_party:
+                            contact['name'] = responsible_party.get('organisation-name')
+                        elif 'individual-name' in responsible_party:
+                            contact['name'] = responsible_party.get('individual-name')
+
+                        if isinstance(responsible_party.get('contact-info'), dict):
+
+                            if 'email' in responsible_party['contact-info']:
+                                contact['email'] = responsible_party['contact-info'].get('email')
+
+                            if 'online-resource' in responsible_party['contact-info']:
+                                onlineres = responsible_party['contact-info'].get('online-resource')
+                                if isinstance(onlineres, dict):
+                                    if 'url' in onlineres:
+                                        contact['uri'] = onlineres.get('url')
+                                elif onlineres is not None:
+                                    contact['uri'] = onlineres
+
                         return contact
 
         return None
