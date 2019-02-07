@@ -604,7 +604,7 @@ class SpatialHarvester(HarvesterBase):
         force_import = self.source_config.get('force_import', False) or self.force_import
 
         status = self._get_object_extra(harvest_object, 'status')
-        if force_import and not status == 'new':
+        if force_import and not ( status == 'new' or status == 'delete'):
             status = 'change'
 
 
