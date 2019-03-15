@@ -324,7 +324,7 @@ class SpatialHarvester(HarvesterBase):
             # store edition in core ckan version, as per the VODAP mapping definition
             package_dict['version'] = iso_values['edition'][0]
         if len(iso_values.get('extent-free-text',[])):
-            extras['geographic-description'] = iso_values['extent-free-text'][0]
+            extras['spatial_text'] = extras['geographic-description'] = iso_values['extent-free-text'][0]
         if len(iso_values.get('keyword-gemet-theme',[])):
             extras['gemet-theme'] = iso_values['keyword-gemet-theme'][0]
 
