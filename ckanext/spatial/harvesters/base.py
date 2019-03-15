@@ -313,7 +313,8 @@ class SpatialHarvester(HarvesterBase):
             extras[name] = iso_values[name]
 
         # align this extra field with ckanext-dcat, as per the VODAP mapping definition
-        extras['language'] = iso_values['metadata-language']
+        if len(iso_values.get('metadata-language',[])):
+            extras['language'] = iso_values['metadata-language']
 
         if len(iso_values.get('dataset-publication-date',[])):
             extras['issued'] = iso_values['dataset-publication-date'][0]['value']
