@@ -242,4 +242,6 @@ class CSWHarvester(SpatialHarvester, SingletonPlugin):
 
     def _setup_csw_client(self, url):
         self.csw = CswService(url)
+        if (self.source_config and 'sortby' in self.source_config):
+            self.csw.sortby =  self.source_config.get('sortby')
 
